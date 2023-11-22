@@ -5,7 +5,7 @@ use objects::{
     assembly::AstSerdeOptions,
     assets::Asset,
 };
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Transaction};
 
 mod migrations;
 
@@ -57,7 +57,18 @@ impl Store {
         Ok(result)
     }
 
-    pub fn insert_account(&self, account: &Account) -> Result<(), StoreError> {
+    pub fn insert_account(&mut self, account: &Account) -> Result<(), StoreError> {
+        let tx = self.db.transaction().unwrap();
+
+        Self::insert_account_initial(&tx, account)?;
+        Self::insert_account_code(&tx, account.code())?;
+        Self::insert_account_storage(&tx, account.storage())?;
+        Self::insert_account_vault(&tx, account.vault())?;
+
+        tx.commit().map_err(StoreError::QueryError)
+    }
+
+    fn insert_account_initial(tx: &Transaction<'_>, account: &Account) -> Result<(), StoreError> {
         let id: u64 = account.id().into();
         let code_root = serde_json::to_string(&account.code().root())
             .map_err(StoreError::InputSerializationError)?;
@@ -66,7 +77,7 @@ impl Store {
         let vault_root = serde_json::to_string(&account.vault().commitment())
             .map_err(StoreError::InputSerializationError)?;
 
-        self.db.execute(
+        tx.execute(
             "INSERT INTO accounts (id, code_root, storage_root, vault_root, nonce, committed) VALUES (?, ?, ?, ?, ?, ?)",
             params![
                 id as i64,
@@ -81,7 +92,10 @@ impl Store {
         .map_err(StoreError::QueryError)
     }
 
-    pub fn insert_account_code(&self, account_code: &AccountCode) -> Result<(), StoreError> {
+    fn insert_account_code(
+        tx: &Transaction<'_>,
+        account_code: &AccountCode,
+    ) -> Result<(), StoreError> {
         let code_root = serde_json::to_string(&account_code.root())
             .map_err(StoreError::InputSerializationError)?;
         let code = serde_json::to_string(account_code.procedures())
@@ -90,17 +104,16 @@ impl Store {
             serialize_imports: true,
         });
 
-        self.db
-            .execute(
-                "INSERT INTO account_code (root, procedures, module) VALUES (?, ?, ?)",
-                params![code_root, code, module,],
-            )
-            .map(|_| ())
-            .map_err(StoreError::QueryError)
+        tx.execute(
+            "INSERT INTO account_code (root, procedures, module) VALUES (?, ?, ?)",
+            params![code_root, code, module,],
+        )
+        .map(|_| ())
+        .map_err(StoreError::QueryError)
     }
 
-    pub fn insert_account_storage(
-        &self,
+    fn insert_account_storage(
+        tx: &Transaction<'_>,
         account_storage: &AccountStorage,
     ) -> Result<(), StoreError> {
         let storage_root = serde_json::to_string(&account_storage.root())
@@ -110,29 +123,30 @@ impl Store {
         let storage_slots =
             serde_json::to_string(&storage_slots).map_err(StoreError::InputSerializationError)?;
 
-        self.db
-            .execute(
-                "INSERT INTO account_storage (root, slots) VALUES (?, ?)",
-                params![storage_root, storage_slots],
-            )
-            .map(|_| ())
-            .map_err(StoreError::QueryError)
+        tx.execute(
+            "INSERT INTO account_storage (root, slots) VALUES (?, ?)",
+            params![storage_root, storage_slots],
+        )
+        .map(|_| ())
+        .map_err(StoreError::QueryError)
     }
 
-    pub fn insert_account_vault(&self, account_vault: &AccountVault) -> Result<(), StoreError> {
+    fn insert_account_vault(
+        tx: &Transaction<'_>,
+        account_vault: &AccountVault,
+    ) -> Result<(), StoreError> {
         let vault_root = serde_json::to_string(&account_vault.commitment())
             .map_err(StoreError::InputSerializationError)?;
 
         let assets: Vec<Asset> = account_vault.assets().collect();
         let assets = serde_json::to_string(&assets).map_err(StoreError::InputSerializationError)?;
 
-        self.db
-            .execute(
-                "INSERT INTO account_vault (root, assets) VALUES (?, ?)",
-                params![vault_root, assets],
-            )
-            .map(|_| ())
-            .map_err(StoreError::QueryError)
+        tx.execute(
+            "INSERT INTO account_vault (root, assets) VALUES (?, ?)",
+            params![vault_root, assets],
+        )
+        .map(|_| ())
+        .map_err(StoreError::QueryError)
     }
 }
 
