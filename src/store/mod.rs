@@ -142,7 +142,7 @@ impl Store {
         let assets = serde_json::to_string(&assets).map_err(StoreError::InputSerializationError)?;
 
         tx.execute(
-            "INSERT INTO account_vault (root, assets) VALUES (?, ?)",
+            "INSERT INTO account_vaults (root, assets) VALUES (?, ?)",
             params![vault_root, assets],
         )
         .map(|_| ())
@@ -169,10 +169,14 @@ impl From<&ClientConfig> for StoreConfig {
 mod tests {
     use std::fs;
 
+    use crypto::{dsa::rpo_falcon512::KeyPair, merkle::MerkleStore, ZERO};
     use ctor::dtor;
 
     use miden_lib::assembler::assembler;
-    use objects::{accounts::AccountCode, assembly::ModuleAst};
+    use objects::{
+        accounts::{Account, AccountCode, AccountId, AccountStorage, AccountVault},
+        assembly::ModuleAst,
+    };
     use rusqlite::{params, Connection};
 
     use crate::store;
@@ -180,6 +184,8 @@ mod tests {
     use super::{migrations, Store};
 
     const DB_NAME: &str = "test_db.sqlite3";
+
+    const ACCOUNT_ID_REGULAR_ACCOUNT_IMMUTABLE_CODE_ON_CHAIN: u64 = 0b0110011011u64 << 54;
 
     pub fn store_for_tests() -> Store {
         let mut db = Connection::open(DB_NAME).unwrap();
@@ -208,6 +214,23 @@ mod tests {
         AccountCode::new(account_code_ast.clone(), &account_assembler).unwrap()
     }
 
+    fn test_account() -> Account {
+        let pub_key = KeyPair::new().unwrap().public_key();
+
+        let account_storage =
+            AccountStorage::new(vec![(0, pub_key.into())], MerkleStore::new()).unwrap();
+        let account_vault = AccountVault::new(&[]).unwrap();
+        let account_code = test_account_code();
+
+        Account::new(
+            AccountId::try_from(ACCOUNT_ID_REGULAR_ACCOUNT_IMMUTABLE_CODE_ON_CHAIN).unwrap(),
+            account_vault,
+            account_storage,
+            account_code,
+            ZERO,
+        )
+    }
+
     #[test]
     pub fn insert_u64_max_as_id() {
         let store = store_for_tests();
@@ -229,6 +252,15 @@ mod tests {
             };
         }
         panic!()
+    }
+
+    #[test]
+    pub fn insert_same_account_twice() {
+        let mut store = store_for_tests();
+        let account = test_account();
+
+        assert!(store.insert_account_with_metadata(&account).is_ok());
+        assert!(store.insert_account_with_metadata(&account).is_err());
     }
 
     #[test]
