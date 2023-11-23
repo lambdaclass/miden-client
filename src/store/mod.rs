@@ -105,7 +105,7 @@ impl Store {
         });
 
         tx.execute(
-            "INSERT INTO account_code (root, procedures, module) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO account_code (root, procedures, module) VALUES (?, ?, ?)",
             params![code_root, code, module,],
         )
         .map(|_| ())

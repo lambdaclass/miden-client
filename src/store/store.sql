@@ -2,7 +2,8 @@
 CREATE TABLE account_code (
     root BLOB NOT NULL,      -- root of the Merkle tree for all exported procedures in account module.
     procedures BLOB NOT NULL, -- serialized procedure digests for the account code.
-    module BLOB NOT NULL      -- serialized ModuleAst for the account code.
+    module BLOB NOT NULL,      -- serialized ModuleAst for the account code.
+    PRIMARY KEY (root)
 );
 
 -- Create account_storage table
