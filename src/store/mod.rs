@@ -171,7 +171,11 @@ mod tests {
 
     use ctor::dtor;
 
+    use miden_lib::assembler::assembler;
+    use objects::{accounts::AccountCode, assembly::ModuleAst};
     use rusqlite::{params, Connection};
+
+    use crate::store;
 
     use super::{migrations, Store};
 
@@ -182,6 +186,26 @@ mod tests {
         migrations::update_to_latest(&mut db).unwrap();
 
         Store { db }
+    }
+
+    fn test_account_code() -> AccountCode {
+        let auth_scheme_procedure = "basic::auth_tx_rpo_falcon512";
+
+        let account_code_string: String = format!(
+            "
+    use.miden::wallets::basic->basic_wallet
+    use.miden::eoa::basic
+
+    export.basic_wallet::receive_asset
+    export.basic_wallet::send_asset
+    export.{auth_scheme_procedure}
+
+    "
+        );
+        let account_code_src: &str = &account_code_string;
+        let account_code_ast = ModuleAst::parse(account_code_src).unwrap();
+        let account_assembler = assembler();
+        AccountCode::new(account_code_ast.clone(), &account_assembler).unwrap()
     }
 
     #[test]
@@ -205,6 +229,33 @@ mod tests {
             };
         }
         panic!()
+    }
+
+    #[test]
+    fn test_account_code_insertion_no_duplicates() {
+        let mut store = store_for_tests();
+        let account_code = test_account_code();
+        let tx = store.db.transaction().unwrap();
+
+        // Table is empty at the beginning
+        let mut actual: usize = tx
+            .query_row("SELECT Count(*) FROM account_code", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(actual, 0);
+
+        // First insertion generates a new row
+        store::Store::insert_account_code(&tx, &account_code).unwrap();
+        actual = tx
+            .query_row("SELECT Count(*) FROM account_code", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(actual, 1);
+
+        // Second insertion does not generate a new row
+        store::Store::insert_account_code(&tx, &account_code).unwrap();
+        actual = tx
+            .query_row("SELECT Count(*) FROM account_code", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(actual, 1);
     }
 
     #[dtor]
