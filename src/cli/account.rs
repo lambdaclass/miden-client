@@ -154,7 +154,7 @@ fn new_account(template: &Option<AccountTemplate>, deploy: bool) -> Result<(), S
     // a function that returns a mutable reference to it
     client
         .store_mut()
-        .insert_account(&account)
+        .insert_account_with_metadata(&account)
         .map_err(|err| err.to_string())?;
 
     Ok(())
