@@ -255,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    pub fn insert_same_account_twice() {
+    pub fn insert_same_account_twice_fails() {
         let mut store = store_for_tests();
         let account = test_account();
 
