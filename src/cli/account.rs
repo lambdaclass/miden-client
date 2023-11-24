@@ -32,6 +32,13 @@ pub enum AccountCmd {
         #[clap(short, long, default_value_t = false)]
         deploy: bool,
     },
+
+    /// Remove existing account from the local store
+    #[clap(short_flag = 'r')]
+    Remove {
+        #[clap()]
+        id: String,
+    },
 }
 
 #[derive(Debug, Parser, Clone)]
@@ -64,6 +71,7 @@ impl AccountCmd {
                 new_account(template, *deploy)?;
             }
             AccountCmd::View { id: _ } => todo!(),
+            AccountCmd::Remove { id } => remove_account(id)?,
         }
         Ok(())
     }
@@ -165,5 +173,21 @@ fn new_account(template: &Option<AccountTemplate>, deploy: bool) -> Result<(), S
         })
         .map_err(|x| x.to_string())?;
 
+    Ok(())
+}
+
+// ACCOUNT REMOVE
+
+fn remove_account(id: &str) -> Result<(), String> {
+    let client = Client::new(ClientConfig::default()).map_err(|err| err.to_string())?;
+
+    let without_prefix = id.trim_start_matches("0x");
+    let account_id: u64 = u64::from_str_radix(&without_prefix, 16).unwrap();
+    client
+        .store()
+        .remove_account(account_id)
+        .map_err(|err| err.to_string())?;
+
+    println!("Succesfully removed Account ID: {}", id);
     Ok(())
 }

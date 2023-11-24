@@ -134,6 +134,16 @@ impl Store {
             .map(|_| ())
             .map_err(StoreError::QueryError)
     }
+
+    pub fn remove_account(&self, account_id: u64) -> Result<(), StoreError> {
+        self.db
+            .execute(
+                "DELETE FROM accounts WHERE id = ?",
+                params![account_id as i64],
+            )
+            .map(|_| ())
+            .map_err(StoreError::QueryError)
+    }
 }
 
 // STORE CONFIG
