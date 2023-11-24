@@ -170,11 +170,11 @@ mod tests {
     use std::env::temp_dir;
     use uuid::Uuid;
 
-    use crypto::{dsa::rpo_falcon512::KeyPair, merkle::MerkleStore, ZERO};
+    use crypto::dsa::rpo_falcon512::KeyPair;
 
-    use miden_lib::assembler::assembler;
+    use miden_lib::{assembler::assembler, AuthScheme};
     use objects::{
-        accounts::{Account, AccountCode, AccountId, AccountStorage, AccountVault},
+        accounts::{Account, AccountCode, AccountType},
         assembly::ModuleAst,
     };
     use rusqlite::{params, Connection};
@@ -183,14 +183,12 @@ mod tests {
 
     use super::{migrations, Store};
 
-    const ACCOUNT_ID_REGULAR_ACCOUNT_IMMUTABLE_CODE_ON_CHAIN: u64 = 0b0110011011u64 << 54;
-
     pub fn store_for_tests() -> Store {
         let mut temp_file = temp_dir();
         temp_file.push(format!("{}.sqlite3", Uuid::new_v4()));
         let mut db = Connection::open(temp_file).unwrap();
         migrations::update_to_latest(&mut db).unwrap();
-        
+
         Store { db }
     }
 
@@ -215,43 +213,63 @@ mod tests {
     }
 
     fn test_account() -> Account {
-        let pub_key = KeyPair::new().unwrap().public_key();
-
-        let account_storage =
-            AccountStorage::new(vec![(0, pub_key.into())], MerkleStore::new()).unwrap();
-        let account_vault = AccountVault::new(&[]).unwrap();
-        let account_code = test_account_code();
-
-        Account::new(
-            AccountId::try_from(ACCOUNT_ID_REGULAR_ACCOUNT_IMMUTABLE_CODE_ON_CHAIN).unwrap(),
-            account_vault,
-            account_storage,
-            account_code,
-            ZERO,
+        let init_seed = [0u8; 32];
+        let key_pair: KeyPair = KeyPair::new().unwrap();
+        let auth_scheme = AuthScheme::RpoFalcon512 {
+            pub_key: key_pair.public_key(),
+        };
+        let (acc, _) = miden_lib::wallets::create_basic_wallet(
+            init_seed,
+            auth_scheme,
+            AccountType::RegularAccountImmutableCode,
         )
+        .unwrap();
+        acc
     }
 
     #[test]
-    pub fn insert_u64_max_as_id() {
+    pub fn test_insert_u64_max_as_id() {
         let store = store_for_tests();
         let test_value: u64 = u64::MAX;
 
+        // Insert dummy data on tables to prevent foreing key constraint errors
+        store
+            .db
+            .execute(
+                "INSERT INTO account_code (root, procedures, module) VALUES ('1', '1', '1')",
+                [],
+            )
+            .unwrap();
+
+        store
+            .db
+            .execute(
+                "INSERT INTO account_storage (root, slots) VALUES ('1', '1')",
+                [],
+            )
+            .unwrap();
+
+        store
+            .db
+            .execute(
+                "INSERT INTO account_vaults (root, assets) VALUES ('1', '1')",
+                [],
+            )
+            .unwrap();
+
+        // Actual test
         store.db.execute(
             "INSERT INTO accounts (id, code_root, storage_root, vault_root, nonce, committed) VALUES (?, '1', '1', '1', '1', '1')",
             params![test_value as i64],
         )
         .unwrap();
 
-        let mut stmt = store.db.prepare("SELECT id from accounts").unwrap();
+        let actual: i64 = store
+            .db
+            .query_row("SELECT id from accounts", [], |row| row.get(0))
+            .unwrap();
 
-        let mut rows = stmt.query([]).unwrap();
-        while let Some(r) = rows.next().unwrap() {
-            let v: i64 = r.get(0).unwrap();
-            if v as u64 == test_value {
-                return;
-            };
-        }
-        panic!()
+        assert_eq!(actual as u64, test_value);
     }
 
     #[test]
