@@ -167,10 +167,10 @@ impl From<&ClientConfig> for StoreConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::env::temp_dir;
+    use uuid::Uuid;
 
     use crypto::{dsa::rpo_falcon512::KeyPair, merkle::MerkleStore, ZERO};
-    use ctor::dtor;
 
     use miden_lib::assembler::assembler;
     use objects::{
@@ -183,14 +183,14 @@ mod tests {
 
     use super::{migrations, Store};
 
-    const DB_NAME: &str = "test_db.sqlite3";
-
     const ACCOUNT_ID_REGULAR_ACCOUNT_IMMUTABLE_CODE_ON_CHAIN: u64 = 0b0110011011u64 << 54;
 
     pub fn store_for_tests() -> Store {
-        let mut db = Connection::open(DB_NAME).unwrap();
+        let mut temp_file = temp_dir();
+        temp_file.push(format!("{}.sqlite3", Uuid::new_v4()));
+        let mut db = Connection::open(temp_file).unwrap();
         migrations::update_to_latest(&mut db).unwrap();
-
+        
         Store { db }
     }
 
@@ -288,10 +288,5 @@ mod tests {
             .query_row("SELECT Count(*) FROM account_code", [], |row| row.get(0))
             .unwrap();
         assert_eq!(actual, 1);
-    }
-
-    #[dtor]
-    fn cleanup() {
-        fs::remove_file(DB_NAME).unwrap()
     }
 }
