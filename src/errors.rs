@@ -38,6 +38,7 @@ pub enum StoreError {
     QueryError(rusqlite::Error),
     InputSerializationError(serde_json::Error),
     DataDeserializationError(serde_json::Error),
+    NotFound,
 }
 
 impl fmt::Display for StoreError {
@@ -53,6 +54,7 @@ impl fmt::Display for StoreError {
             DataDeserializationError(err) => {
                 write!(f, "error deserializing data from the store: {err}")
             }
+            NotFound => write!(f, "requested data was not found in the store"),
         }
     }
 }

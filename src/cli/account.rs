@@ -32,6 +32,13 @@ pub enum AccountCmd {
         #[clap(short, long, default_value_t = false)]
         deploy: bool,
     },
+
+    /// Remove existing account from the local store
+    #[clap(short_flag = 'r')]
+    Remove {
+        #[clap()]
+        id: String,
+    },
 }
 
 #[derive(Debug, Parser, Clone)]
@@ -64,6 +71,7 @@ impl AccountCmd {
                 new_account(template, *deploy)?;
             }
             AccountCmd::View { id: _ } => todo!(),
+            AccountCmd::Remove { id } => remove_account(id)?,
         }
         Ok(())
     }
@@ -153,10 +161,10 @@ fn new_account(template: &Option<AccountTemplate>, deploy: bool) -> Result<(), S
     // TODO: Make these inserts atomic through a single transaction
     client
         .store()
-        .insert_account(&account)
-        .and_then(|_| client.store().insert_account_code(account.code()))
+        .insert_account_code(account.code())
         .and_then(|_| client.store().insert_account_storage(account.storage()))
         .and_then(|_| client.store().insert_account_vault(account.vault()))
+        .and_then(|_| client.store().insert_account(&account))
         .map(|_| {
             println!(
                 "Succesfully created and stored Account ID: {}",
@@ -165,5 +173,22 @@ fn new_account(template: &Option<AccountTemplate>, deploy: bool) -> Result<(), S
         })
         .map_err(|x| x.to_string())?;
 
+    Ok(())
+}
+
+// ACCOUNT REMOVE
+// ================================================================================================
+
+fn remove_account(id: &str) -> Result<(), String> {
+    let mut client = Client::new(ClientConfig::default()).map_err(|err| err.to_string())?;
+
+    let without_prefix = id.trim_start_matches("0x");
+    let account_id: u64 = u64::from_str_radix(without_prefix, 16).map_err(|err| err.to_string())?;
+    client
+        .store_mut()
+        .remove_account(account_id)
+        .map_err(|err| err.to_string())?;
+
+    println!("Succesfully removed Account ID: {}", id);
     Ok(())
 }

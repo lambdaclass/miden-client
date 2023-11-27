@@ -128,11 +128,84 @@ impl Store {
 
         self.db
             .execute(
-                "INSERT INTO account_vault (root, assets) VALUES (?, ?)",
+                "INSERT INTO account_vaults (root, assets) VALUES (?, ?)",
                 params![vault_root, assets],
             )
             .map(|_| ())
             .map_err(StoreError::QueryError)
+    }
+
+    pub fn remove_account(&mut self, account_id: u64) -> Result<(), StoreError> {
+        let tx = self.db.transaction().map_err(StoreError::ConnectionError)?;
+
+        let Ok((code_root, storage_root, vault_root)) = tx.query_row(
+            "SELECT code_root, storage_root, vault_root FROM accounts WHERE id = ? ",
+            params![account_id as i64],
+            |row| {
+                let code_root: String = row.get(0)?;
+                let storage_root: String = row.get(1)?;
+                let vault_root: String = row.get(2)?;
+
+                Ok((code_root, storage_root, vault_root))
+            },
+        ) else {
+            return Err(StoreError::NotFound);
+        };
+
+        // Remove from accounts table
+        if tx
+            .execute(
+                "DELETE FROM accounts WHERE id = ?",
+                params![account_id as i64],
+            )
+            .map_err(StoreError::QueryError)?
+            == 0
+        {
+            return Err(StoreError::NotFound);
+        }
+
+        // Remove from account_keys table
+        // Currently not stored
+
+        // Remove from account_code table
+        // should only be removed if it is not used by any other account
+        if tx
+            .execute(
+                "DELETE FROM account_code WHERE root = ?",
+                params![code_root],
+            )
+            .map_err(StoreError::QueryError)?
+            == 0
+        {
+            return Err(StoreError::NotFound);
+        }
+
+        // Remove from account_storage table
+        if tx
+            .execute(
+                "DELETE FROM account_storage WHERE root = ?",
+                params![storage_root],
+            )
+            .map_err(StoreError::QueryError)?
+            == 0
+        {
+            return Err(StoreError::NotFound);
+        }
+
+        // Remove from account_vaults table
+        if tx
+            .execute(
+                "DELETE FROM account_vaults WHERE root = ?",
+                params![vault_root],
+            )
+            .map_err(StoreError::QueryError)?
+            == 0
+        {
+            return Err(StoreError::NotFound);
+        }
+
+        tx.commit().map_err(StoreError::ConnectionError)?;
+        Ok(())
     }
 }
 
