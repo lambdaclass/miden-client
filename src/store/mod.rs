@@ -168,6 +168,7 @@ impl Store {
         // Currently not stored
 
         // Remove from account_code table
+        // should only be removed if it is not used by any other account
         if tx
             .execute(
                 "DELETE FROM account_code WHERE root = ?",
