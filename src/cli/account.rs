@@ -177,15 +177,15 @@ fn new_account(template: &Option<AccountTemplate>, deploy: bool) -> Result<(), S
 }
 
 // ACCOUNT REMOVE
+// ================================================================================================
 
 fn remove_account(id: &str) -> Result<(), String> {
-    let client = Client::new(ClientConfig::default()).map_err(|err| err.to_string())?;
+    let mut client = Client::new(ClientConfig::default()).map_err(|err| err.to_string())?;
 
     let without_prefix = id.trim_start_matches("0x");
-    let account_id: u64 =
-        u64::from_str_radix(&without_prefix, 16).map_err(|err| err.to_string())?;
+    let account_id: u64 = u64::from_str_radix(without_prefix, 16).map_err(|err| err.to_string())?;
     client
-        .store()
+        .store_mut()
         .remove_account(account_id)
         .map_err(|err| err.to_string())?;
 
