@@ -6,7 +6,6 @@ use predicates::prelude::*; // Used for writing assertions
 fn test_cli_create_account_works() -> Result<(), Box<dyn std::error::Error>> {
     let run = CargoBuild::new()
         .bin(env!("CARGO_PKG_NAME"))
-        .release()
         .features("testing")
         .run()
         .unwrap()
@@ -35,7 +34,6 @@ fn test_cli_create_account_works() -> Result<(), Box<dyn std::error::Error>> {
 fn test_cli_list_accounts() -> Result<(), Box<dyn std::error::Error>> {
     let run = CargoBuild::new()
         .bin(env!("CARGO_PKG_NAME"))
-        .release()
         .features("testing")
         .run()
         .unwrap()
