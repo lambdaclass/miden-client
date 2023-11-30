@@ -79,11 +79,10 @@ impl Store {
 
     pub fn insert_account_with_metadata(&mut self, account: &Account) -> Result<(), StoreError> {
         // make this atomic
-
-        self.insert_account_code(account.code()).unwrap();
-        self.insert_account_storage(account.storage()).unwrap();
-        self.insert_account_vault(account.vault()).unwrap();
-        self.insert_account(&account).unwrap();
+        self.insert_account_code(account.code())?;
+        self.insert_account_storage(account.storage())?;
+        self.insert_account_vault(account.vault())?;
+        self.insert_account(&account)?;
 
         Ok(())
     }
@@ -96,7 +95,7 @@ impl Store {
             .values(account)
             .returning(Accounts::as_returning())
             .get_result(&mut self.db)
-            .expect("Error saving new account"); // TODO: handle error
+            .map_err(StoreError::QueryError)?;
 
         Ok(())
     }
@@ -106,7 +105,7 @@ impl Store {
         diesel::insert_into(schema::account_code::table)
             .values(new_account_code)
             .execute(&mut self.db)
-            .expect("Error saving new account code"); // TODO: handle error
+            .map_err(StoreError::QueryError)?;
 
         Ok(())
     }
@@ -119,7 +118,7 @@ impl Store {
         diesel::insert_into(schema::account_storage::table)
             .values(new_account_storage)
             .execute(&mut self.db)
-            .expect("Error saving new account storage"); // TODO: handle error
+            .map_err(StoreError::QueryError)?;
 
         Ok(())
     }
@@ -129,7 +128,7 @@ impl Store {
         diesel::insert_into(schema::account_vaults::table)
             .values(new_account_vault)
             .execute(&mut self.db)
-            .expect("Error saving new account vault"); // TODO: handle error
+            .map_err(StoreError::QueryError)?;
 
         Ok(())
     }
@@ -365,6 +364,6 @@ pub mod tests {
         let account = account::mock_new_account(&assembler);
 
         assert!(store.insert_account_with_metadata(&account).is_ok());
-        // assert!(store.insert_account_with_metadata(&account).is_err());
+        assert!(store.insert_account_with_metadata(&account).is_err());
     }
 }
