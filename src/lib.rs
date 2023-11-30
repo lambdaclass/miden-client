@@ -55,6 +55,16 @@ impl Client {
         &self.store
     }
 
+    // ACCOUNT INSERTION
+    // --------------------------------------------------------------------------------------------
+
+    /// Inserts a new account into the client's store.
+    pub fn insert_account_with_metadata(&mut self, account: &Account) -> Result<(), ClientError> {
+        self.store
+            .insert_account_with_metadata(account)
+            .map_err(ClientError::StoreError)
+    }
+
     // ACCOUNT DATA RETRIEVAL
     // --------------------------------------------------------------------------------------------
 
@@ -145,8 +155,7 @@ impl Default for ClientConfig {
             Err(_) => PathBuf::new(),
         };
 
-        // let store_path = exec_dir.join(STORE_FILENAME);
-        let store_path = PathBuf::from(STORE_FILENAME);
+        let store_path = exec_dir.join(STORE_FILENAME);
 
         Self {
             store_path: store_path
@@ -186,6 +195,7 @@ mod tests {
     };
 
     #[test]
+    /// This test is only to ensure that the database is created correctly.
     fn test_get_accounts() {
         // generate test store path
         let store_path = create_test_store_path();

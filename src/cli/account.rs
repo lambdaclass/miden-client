@@ -100,7 +100,7 @@ fn list_accounts(mut client: Client) -> Result<(), String> {
 // ================================================================================================
 
 fn new_account(
-    client: Client,
+    mut client: Client,
     template: &Option<AccountTemplate>,
     deploy: bool,
 ) -> Result<(), String> {
@@ -151,20 +151,9 @@ fn new_account(
     }
     .map_err(|err| err.to_string())?;
 
-    // TODO: Make these inserts atomic through a single transaction
     client
-        .store()
-        .insert_account_code(account.code())
-        .and_then(|_| client.store().insert_account_storage(account.storage()))
-        .and_then(|_| client.store().insert_account_vault(account.vault()))
-        .and_then(|_| client.store().insert_account(&account))
-        .map(|_| {
-            println!(
-                "Succesfully created and stored Account ID: {}",
-                account.id()
-            )
-        })
-        .map_err(|x| x.to_string())?;
+        .insert_account_with_metadata(&account)
+        .map_err(|err| err.to_string())?;
 
     Ok(())
 }
