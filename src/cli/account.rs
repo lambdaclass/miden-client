@@ -72,7 +72,7 @@ impl AccountCmd {
 // LIST ACCOUNTS
 // ================================================================================================
 
-fn list_accounts(client: Client) -> Result<(), String> {
+fn list_accounts(mut client: Client) -> Result<(), String> {
     println!("{}", "-".repeat(240));
     println!(
         "{0: <18} | {1: <66} | {2: <66} | {3: <66} | {4: <15}",

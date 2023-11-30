@@ -1,3 +1,6 @@
+mod models;
+pub mod schema;
+
 use super::{errors::StoreError, AccountStub, ClientConfig};
 use crypto::{utils::collections::BTreeMap, Word};
 use objects::{
@@ -7,9 +10,14 @@ use objects::{
     notes::{Note, NoteMetadata, RecordedNote},
     Digest, Felt,
 };
-use rusqlite::{params, Connection};
+// use rusqlite::{params, Connection};
+use rusqlite::params;
 
-mod migrations;
+// from diesel guide, move to better place
+use diesel::prelude::*;
+use diesel::{sqlite::SqliteConnection, Connection};
+use miden_lib::*;
+use models::*; // this is definetely overkill, simplify later
 
 // TYPES
 // ================================================================================================
@@ -36,7 +44,7 @@ type SerializedInputNoteParts = (String, String, String, String, u64, u64, u64, 
 // ================================================================================================
 
 pub struct Store {
-    db: Connection,
+    db: SqliteConnection,
 }
 
 impl Store {
@@ -45,8 +53,10 @@ impl Store {
 
     /// Returns a new instance of [Store] instantiated with the specified configuration options.
     pub fn new(config: StoreConfig) -> Result<Self, StoreError> {
-        let mut db = Connection::open(config.path).map_err(StoreError::ConnectionError)?;
-        migrations::update_to_latest(&mut db)?;
+        // let mut db = Connection::open(config.path).map_err(StoreError::ConnectionError)?;
+        // migrations::update_to_latest(&mut db)?;
+
+        let db = SqliteConnection::establish(&config.path).unwrap(); // TODO: handle error
 
         Ok(Self { db })
     }
@@ -54,115 +64,128 @@ impl Store {
     // ACCOUNTS
     // --------------------------------------------------------------------------------------------
 
-    pub fn get_accounts(&self) -> Result<Vec<AccountStub>, StoreError> {
-        let mut stmt = self
-            .db
-            .prepare("SELECT id, nonce, vault_root, storage_root, code_root FROM accounts")
-            .map_err(StoreError::QueryError)?;
+    pub fn get_accounts(&mut self) -> Result<Vec<AccountStub>, StoreError> {
+        use schema::accounts::dsl::*;
 
-        let mut rows = stmt.query([]).map_err(StoreError::QueryError)?;
-        let mut result = Vec::new();
-        while let Some(row) = rows.next().map_err(StoreError::QueryError)? {
-            // TODO: implement proper error handling and conversions
+        let res = accounts
+            .select(Accounts::as_select())
+            .load(&mut self.db)
+            .unwrap();
+        println!("len: {:?}", res.len());
 
-            let id: i64 = row.get(0).map_err(StoreError::QueryError)?;
-            let nonce: i64 = row.get(1).map_err(StoreError::QueryError)?;
+        // let mut stmt = self
+        //     .db
+        //     .prepare("SELECT id, nonce, vault_root, storage_root, code_root FROM accounts")
+        //     .map_err(StoreError::QueryError)?;
 
-            let vault_root: String = row.get(2).map_err(StoreError::QueryError)?;
-            let storage_root: String = row.get(3).map_err(StoreError::QueryError)?;
-            let code_root: String = row.get(4).map_err(StoreError::QueryError)?;
+        // let mut rows = stmt.query([]).map_err(StoreError::QueryError)?;
+        // let mut result = Vec::new();
+        // while let Some(row) = rows.next().map_err(StoreError::QueryError)? {
+        //     // TODO: implement proper error handling and conversions
 
-            result.push(AccountStub::new(
-                (id as u64)
-                    .try_into()
-                    .expect("Conversion from stored AccountID should not panic"),
-                (nonce as u64).into(),
-                serde_json::from_str(&vault_root).map_err(StoreError::DataDeserializationError)?,
-                serde_json::from_str(&storage_root)
-                    .map_err(StoreError::DataDeserializationError)?,
-                serde_json::from_str(&code_root).map_err(StoreError::DataDeserializationError)?,
-            ));
-        }
+        //     let id: i64 = row.get(0).map_err(StoreError::QueryError)?;
+        //     let nonce: i64 = row.get(1).map_err(StoreError::QueryError)?;
 
-        Ok(result)
+        //     let vault_root: String = row.get(2).map_err(StoreError::QueryError)?;
+        //     let storage_root: String = row.get(3).map_err(StoreError::QueryError)?;
+        //     let code_root: String = row.get(4).map_err(StoreError::QueryError)?;
+
+        //     result.push(AccountStub::new(
+        //         (id as u64)
+        //             .try_into()
+        //             .expect("Conversion from stored AccountID should not panic"),
+        //         (nonce as u64).into(),
+        //         serde_json::from_str(&vault_root).map_err(StoreError::DataDeserializationError)?,
+        //         serde_json::from_str(&storage_root)
+        //             .map_err(StoreError::DataDeserializationError)?,
+        //         serde_json::from_str(&code_root).map_err(StoreError::DataDeserializationError)?,
+        //     ));
+        // }
+
+        // Ok(result)
+        todo!()
     }
 
-    pub fn insert_account(&self, account: &Account) -> Result<(), StoreError> {
-        let id: u64 = account.id().into();
-        let code_root = serde_json::to_string(&account.code().root())
-            .map_err(StoreError::InputSerializationError)?;
-        let storage_root = serde_json::to_string(&account.storage().root())
-            .map_err(StoreError::InputSerializationError)?;
-        let vault_root = serde_json::to_string(&account.vault().commitment())
-            .map_err(StoreError::InputSerializationError)?;
+    pub fn insert_account(&self, _account: &Account) -> Result<(), StoreError> {
+        // let id: u64 = account.id().into();
+        // let code_root = serde_json::to_string(&account.code().root())
+        //     .map_err(StoreError::InputSerializationError)?;
+        // let storage_root = serde_json::to_string(&account.storage().root())
+        //     .map_err(StoreError::InputSerializationError)?;
+        // let vault_root = serde_json::to_string(&account.vault().commitment())
+        //     .map_err(StoreError::InputSerializationError)?;
 
-        self.db.execute(
-            "INSERT INTO accounts (id, code_root, storage_root, vault_root, nonce, committed) VALUES (?, ?, ?, ?, ?, ?)",
-            params![
-                id as i64,
-                code_root,
-                storage_root,
-                vault_root,
-                account.nonce().inner() as i64,
-                account.is_on_chain(),
-            ],
-        )
-        .map(|_| ())
-        .map_err(StoreError::QueryError)
+        // self.db.execute(
+        //     "INSERT INTO accounts (id, code_root, storage_root, vault_root, nonce, committed) VALUES (?, ?, ?, ?, ?, ?)",
+        //     params![
+        //         id as i64,
+        //         code_root,
+        //         storage_root,
+        //         vault_root,
+        //         account.nonce().inner() as i64,
+        //         account.is_on_chain(),
+        //     ],
+        // )
+        // .map(|_| ())
+        // .map_err(StoreError::QueryError)
+        todo!()
     }
 
-    pub fn insert_account_code(&self, account_code: &AccountCode) -> Result<(), StoreError> {
-        let code_root = serde_json::to_string(&account_code.root())
-            .map_err(StoreError::InputSerializationError)?;
-        let code = serde_json::to_string(account_code.procedures())
-            .map_err(StoreError::InputSerializationError)?;
-        let module = account_code.module().to_bytes(AstSerdeOptions {
-            serialize_imports: true,
-        });
+    pub fn insert_account_code(&self, _account_code: &AccountCode) -> Result<(), StoreError> {
+        // let code_root = serde_json::to_string(&account_code.root())
+        //     .map_err(StoreError::InputSerializationError)?;
+        // let code = serde_json::to_string(account_code.procedures())
+        //     .map_err(StoreError::InputSerializationError)?;
+        // let module = account_code.module().to_bytes(AstSerdeOptions {
+        //     serialize_imports: true,
+        // });
 
-        self.db
-            .execute(
-                "INSERT INTO account_code (root, procedures, module) VALUES (?, ?, ?)",
-                params![code_root, code, module,],
-            )
-            .map(|_| ())
-            .map_err(StoreError::QueryError)
+        // self.db
+        //     .execute(
+        //         "INSERT INTO account_code (root, procedures, module) VALUES (?, ?, ?)",
+        //         params![code_root, code, module,],
+        //     )
+        //     .map(|_| ())
+        //     .map_err(StoreError::QueryError)
+        todo!()
     }
 
     pub fn insert_account_storage(
         &self,
-        account_storage: &AccountStorage,
+        _account_storage: &AccountStorage,
     ) -> Result<(), StoreError> {
-        let storage_root = serde_json::to_string(&account_storage.root())
-            .map_err(StoreError::InputSerializationError)?;
+        // let storage_root = serde_json::to_string(&account_storage.root())
+        //     .map_err(StoreError::InputSerializationError)?;
 
-        let storage_slots: BTreeMap<u64, &Word> = account_storage.slots().leaves().collect();
-        let storage_slots =
-            serde_json::to_string(&storage_slots).map_err(StoreError::InputSerializationError)?;
+        // let storage_slots: BTreeMap<u64, &Word> = account_storage.slots().leaves().collect();
+        // let storage_slots =
+        //     serde_json::to_string(&storage_slots).map_err(StoreError::InputSerializationError)?;
 
-        self.db
-            .execute(
-                "INSERT INTO account_storage (root, slots) VALUES (?, ?)",
-                params![storage_root, storage_slots],
-            )
-            .map(|_| ())
-            .map_err(StoreError::QueryError)
+        // self.db
+        //     .execute(
+        //         "INSERT INTO account_storage (root, slots) VALUES (?, ?)",
+        //         params![storage_root, storage_slots],
+        //     )
+        //     .map(|_| ())
+        //     .map_err(StoreError::QueryError)
+        todo!()
     }
 
-    pub fn insert_account_vault(&self, account_vault: &AccountVault) -> Result<(), StoreError> {
-        let vault_root = serde_json::to_string(&account_vault.commitment())
-            .map_err(StoreError::InputSerializationError)?;
+    pub fn insert_account_vault(&self, _account_vault: &AccountVault) -> Result<(), StoreError> {
+        // let vault_root = serde_json::to_string(&account_vault.commitment())
+        //     .map_err(StoreError::InputSerializationError)?;
 
-        let assets: Vec<Asset> = account_vault.assets().collect();
-        let assets = serde_json::to_string(&assets).map_err(StoreError::InputSerializationError)?;
+        // let assets: Vec<Asset> = account_vault.assets().collect();
+        // let assets = serde_json::to_string(&assets).map_err(StoreError::InputSerializationError)?;
 
-        self.db
-            .execute(
-                "INSERT INTO account_vaults (root, assets) VALUES (?, ?)",
-                params![vault_root, assets],
-            )
-            .map(|_| ())
-            .map_err(StoreError::QueryError)
+        // self.db
+        //     .execute(
+        //         "INSERT INTO account_vaults (root, assets) VALUES (?, ?)",
+        //         params![vault_root, assets],
+        //     )
+        //     .map(|_| ())
+        //     .map_err(StoreError::QueryError)
+        todo!()
     }
 
     // NOTES
@@ -170,85 +193,88 @@ impl Store {
 
     /// Retrieves the input notes from the database
     pub fn get_input_notes(&self) -> Result<Vec<RecordedNote>, StoreError> {
-        const QUERY: &str = "SELECT script, inputs, vault, serial_num, sender_id, tag, num_assets, inclusion_proof FROM input_notes";
+        // const QUERY: &str = "SELECT script, inputs, vault, serial_num, sender_id, tag, num_assets, inclusion_proof FROM input_notes";
 
-        self.db
-            .prepare(QUERY)
-            .map_err(StoreError::QueryError)?
-            .query_map([], parse_input_note_columns)
-            .expect("no binding parameters used in query")
-            .map(|result| {
-                result
-                    .map_err(StoreError::ColumnParsingError)
-                    .and_then(parse_input_note)
-            })
-            .collect::<Result<Vec<RecordedNote>, _>>()
+        // self.db
+        //     .prepare(QUERY)
+        //     .map_err(StoreError::QueryError)?
+        //     .query_map([], parse_input_note_columns)
+        //     .expect("no binding parameters used in query")
+        //     .map(|result| {
+        //         result
+        //             .map_err(StoreError::ColumnParsingError)
+        //             .and_then(parse_input_note)
+        //     })
+        //     .collect::<Result<Vec<RecordedNote>, _>>()
+        todo!()
     }
 
     /// Retrieves the input note with the specified hash from the database
-    pub fn get_input_note_by_hash(&self, hash: Digest) -> Result<RecordedNote, StoreError> {
-        let query_hash =
-            serde_json::to_string(&hash).map_err(StoreError::InputSerializationError)?;
-        const QUERY: &str = "SELECT script, inputs, vault, serial_num, sender_id, tag, num_assets, inclusion_proof FROM input_notes WHERE hash = ?";
+    pub fn get_input_note_by_hash(&self, _hash: Digest) -> Result<RecordedNote, StoreError> {
+        // let query_hash =
+        //     serde_json::to_string(&hash).map_err(StoreError::InputSerializationError)?;
+        // const QUERY: &str = "SELECT script, inputs, vault, serial_num, sender_id, tag, num_assets, inclusion_proof FROM input_notes WHERE hash = ?";
 
-        self.db
-            .prepare(QUERY)
-            .map_err(StoreError::QueryError)?
-            .query_map(params![query_hash.to_string()], parse_input_note_columns)
-            .map_err(StoreError::QueryError)?
-            .map(|result| {
-                result
-                    .map_err(StoreError::ColumnParsingError)
-                    .and_then(parse_input_note)
-            })
-            .next()
-            .ok_or(StoreError::InputNoteNotFound(hash))?
+        // self.db
+        //     .prepare(QUERY)
+        //     .map_err(StoreError::QueryError)?
+        //     .query_map(params![query_hash.to_string()], parse_input_note_columns)
+        //     .map_err(StoreError::QueryError)?
+        //     .map(|result| {
+        //         result
+        //             .map_err(StoreError::ColumnParsingError)
+        //             .and_then(parse_input_note)
+        //     })
+        //     .next()
+        //     .ok_or(StoreError::InputNoteNotFound(hash))?
+        todo!()
     }
 
     /// Inserts the provided input note into the database
-    pub fn insert_input_note(&self, recorded_note: &RecordedNote) -> Result<(), StoreError> {
-        let (
-            hash,
-            nullifier,
-            script,
-            vault,
-            inputs,
-            serial_num,
-            sender_id,
-            tag,
-            num_assets,
-            inclusion_proof,
-            recipients,
-            status,
-            commit_height,
-        ) = serialize_input_note(recorded_note)?;
+    pub fn insert_input_note(&self, _recorded_note: &RecordedNote) -> Result<(), StoreError> {
+        // let (
+        //     hash,
+        //     nullifier,
+        //     script,
+        //     vault,
+        //     inputs,
+        //     serial_num,
+        //     sender_id,
+        //     tag,
+        //     num_assets,
+        //     inclusion_proof,
+        //     recipients,
+        //     status,
+        //     commit_height,
+        // ) = serialize_input_note(recorded_note)?;
 
-        const QUERY: &str = "\
-        INSERT INTO input_notes
-            (hash, nullifier, script, vault, inputs, serial_num, sender_id, tag, num_assets, inclusion_proof, recipients, status, commit_height)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        // const QUERY: &str = "\
+        // INSERT INTO input_notes
+        //     (hash, nullifier, script, vault, inputs, serial_num, sender_id, tag, num_assets, inclusion_proof, recipients, status, commit_height)
+        //  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        self.db
-            .execute(
-                QUERY,
-                params![
-                    hash,
-                    nullifier,
-                    script,
-                    vault,
-                    inputs,
-                    serial_num,
-                    sender_id,
-                    tag,
-                    num_assets,
-                    inclusion_proof,
-                    recipients,
-                    status,
-                    commit_height
-                ],
-            )
-            .map_err(StoreError::QueryError)
-            .map(|_| ())
+        // self.db
+        //     .execute(
+        //         QUERY,
+        //         params![
+        //             hash,
+        //             nullifier,
+        //             script,
+        //             vault,
+        //             inputs,
+        //             serial_num,
+        //             sender_id,
+        //             tag,
+        //             num_assets,
+        //             inclusion_proof,
+        //             recipients,
+        //             status,
+        //             commit_height
+        //         ],
+        //     )
+        //     .map_err(StoreError::QueryError)
+        //     .map(|_| ())
+        todo!()
     }
 }
 
