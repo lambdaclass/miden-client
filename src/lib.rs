@@ -180,8 +180,6 @@ impl Default for Endpoint {
 
 #[cfg(test)]
 mod tests {
-    use crate::ClientConfig;
-
     use super::store::tests::create_test_store_path;
     use mock::mock::{
         account::MockAccountType, notes::AssetPreservationStatus, transaction::mock_inputs,
@@ -193,7 +191,11 @@ mod tests {
         let store_path = create_test_store_path();
 
         // generate test client
-        let mut client = super::Client::new(ClientConfig::default()).unwrap();
+        let mut client = super::Client::new(super::ClientConfig::new(
+            store_path.into_os_string().into_string().unwrap(),
+            super::Endpoint::default(),
+        ))
+        .unwrap();
 
         client.get_accounts().unwrap();
     }

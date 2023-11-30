@@ -16,8 +16,11 @@ use rusqlite::params;
 // from diesel guide, move to better place
 use diesel::prelude::*;
 use diesel::{sqlite::SqliteConnection, Connection};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use miden_lib::*;
-use models::*; // this is definetely overkill, simplify later
+use models::*;
+
+const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./src/store/migrations");
 
 // TYPES
 // ================================================================================================
@@ -53,10 +56,8 @@ impl Store {
 
     /// Returns a new instance of [Store] instantiated with the specified configuration options.
     pub fn new(config: StoreConfig) -> Result<Self, StoreError> {
-        // let mut db = Connection::open(config.path).map_err(StoreError::ConnectionError)?;
-        // migrations::update_to_latest(&mut db)?;
-
-        let db = SqliteConnection::establish(&config.path).unwrap(); // TODO: handle error
+        let mut db = SqliteConnection::establish(&config.path).unwrap(); // TODO: handle error
+        db.run_pending_migrations(MIGRATIONS).unwrap();
 
         Ok(Self { db })
     }
