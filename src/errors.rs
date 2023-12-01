@@ -36,7 +36,7 @@ pub enum StoreError {
     ConnectionError(rusqlite::Error),
     MigrationError(rusqlite_migration::Error),
     ColumnParsingError(rusqlite::Error),
-    QueryError(rusqlite::Error),
+    QueryError(diesel::result::Error),
     InputSerializationError(serde_json::Error),
     DataDeserializationError(serde_json::Error),
     InputNoteNotFound(Digest),

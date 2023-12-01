@@ -11,6 +11,10 @@ use store::Store;
 pub mod errors;
 use errors::ClientError;
 
+// from diesel guide, eval keeping this here
+// pub mod models; // can we move this to /store ?
+// pub mod schema; // can we move this to /store ?
+
 // MIDEN CLIENT
 // ================================================================================================
 
@@ -51,13 +55,23 @@ impl Client {
         &self.store
     }
 
+    // ACCOUNT INSERTION
+    // --------------------------------------------------------------------------------------------
+
+    /// Inserts a new account into the client's store.
+    pub fn insert_account_with_metadata(&mut self, account: &Account) -> Result<(), ClientError> {
+        self.store
+            .insert_account_with_metadata(account)
+            .map_err(ClientError::StoreError)
+    }
+
     // ACCOUNT DATA RETRIEVAL
     // --------------------------------------------------------------------------------------------
 
     /// Returns summary info about the accounts managed by this client.
     ///
     /// TODO: replace `AccountStub` with a more relevant structure.
-    pub fn get_accounts(&self) -> Result<Vec<AccountStub>, ClientError> {
+    pub fn get_accounts(&mut self) -> Result<Vec<AccountStub>, ClientError> {
         self.store.get_accounts().map_err(|err| err.into())
     }
 
@@ -179,6 +193,22 @@ mod tests {
     use mock::mock::{
         account::MockAccountType, notes::AssetPreservationStatus, transaction::mock_inputs,
     };
+
+    #[test]
+    /// This test is only to ensure that the database is created correctly.
+    fn test_get_accounts() {
+        // generate test store path
+        let store_path = create_test_store_path();
+
+        // generate test client
+        let mut client = super::Client::new(super::ClientConfig::new(
+            store_path.into_os_string().into_string().unwrap(),
+            super::Endpoint::default(),
+        ))
+        .unwrap();
+
+        client.get_accounts().unwrap();
+    }
 
     #[test]
     fn test_input_notes_round_trip() {

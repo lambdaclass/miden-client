@@ -26,6 +26,8 @@ rusqlite_migration = { version = "1.0" }
 rand = { version="0.8.5" }
 serde = {version="1.0", features = ["derive"]}
 serde_json = { version = "1.0", features = ["raw_value"] }
+diesel = { version = "2.1.4", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
+diesel_migrations = "2.1.0"
 
 [dev-dependencies]
 uuid = { version = "1.6.1", features = ["serde", "v4"] }
