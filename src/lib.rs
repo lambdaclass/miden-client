@@ -37,9 +37,9 @@ impl Client {
     ///
     /// # Errors
     /// Returns an error if the client could not be instantiated.
-    pub fn new(config: ClientConfig) -> Result<Self, ClientError> {
+    pub async fn new(config: ClientConfig) -> Result<Self, ClientError> {
         Ok(Self {
-            store: Store::new((&config).into())?,
+            store: Store::new((&config).into()).await?,
         })
     }
 
@@ -180,8 +180,8 @@ mod tests {
         account::MockAccountType, notes::AssetPreservationStatus, transaction::mock_inputs,
     };
 
-    #[test]
-    fn test_input_notes_round_trip() {
+    #[tokio::test]
+    async fn test_input_notes_round_trip() {
         // generate test store path
         let store_path = create_test_store_path();
 
@@ -190,6 +190,7 @@ mod tests {
             store_path.into_os_string().into_string().unwrap(),
             super::Endpoint::default(),
         ))
+        .await
         .unwrap();
 
         // generate test data
@@ -210,8 +211,8 @@ mod tests {
         assert_eq!(recorded_notes, retrieved_notes);
     }
 
-    #[test]
-    fn test_get_input_note() {
+    #[tokio::test]
+    async fn test_get_input_note() {
         // generate test store path
         let store_path = create_test_store_path();
 
@@ -220,6 +221,7 @@ mod tests {
             store_path.into_os_string().into_string().unwrap(),
             super::Endpoint::default(),
         ))
+        .await
         .unwrap();
 
         // generate test data

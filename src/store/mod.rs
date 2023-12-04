@@ -9,7 +9,12 @@ use objects::{
 };
 use rusqlite::{params, Connection};
 
-mod migrations;
+// mod migrations;
+use entity::{account_code, account_keys, account_storage, account_vaults, accounts};
+use migration::{Migrator, MigratorTrait};
+use sea_orm::{
+    ActiveModelTrait, Database, DatabaseConnection, DatabaseTransaction, Set, TransactionTrait,
+};
 
 // TYPES
 // ================================================================================================
@@ -36,7 +41,7 @@ type SerializedInputNoteParts = (String, String, String, String, u64, u64, u64, 
 // ================================================================================================
 
 pub struct Store {
-    db: Connection,
+    db: DatabaseConnection,
 }
 
 impl Store {
@@ -44,10 +49,14 @@ impl Store {
     // --------------------------------------------------------------------------------------------
 
     /// Returns a new instance of [Store] instantiated with the specified configuration options.
-    pub fn new(config: StoreConfig) -> Result<Self, StoreError> {
-        let mut db = Connection::open(config.path).map_err(StoreError::ConnectionError)?;
-        migrations::update_to_latest(&mut db)?;
-
+    pub async fn new(config: StoreConfig) -> Result<Self, StoreError> {
+        let url = format!("sqlite://{}?mode=rwc", config.path);
+        let db = Database::connect(&url)
+            .await
+            .expect("Failed to setup the database");
+        Migrator::up(&db, None)
+            .await
+            .expect("Failed to run migrations for tests");
         Ok(Self { db })
     }
 
@@ -55,114 +64,147 @@ impl Store {
     // --------------------------------------------------------------------------------------------
 
     pub fn get_accounts(&self) -> Result<Vec<AccountStub>, StoreError> {
-        let mut stmt = self
-            .db
-            .prepare("SELECT id, nonce, vault_root, storage_root, code_root FROM accounts")
+        todo!()
+        // let mut stmt = self
+        //     .db
+        //     .prepare("SELECT id, nonce, vault_root, storage_root, code_root FROM accounts")
+        //     .map_err(StoreError::QueryError)?;
+
+        // let mut rows = stmt.query([]).map_err(StoreError::QueryError)?;
+        // let mut result = Vec::new();
+        // while let Some(row) = rows.next().map_err(StoreError::QueryError)? {
+        //     // TODO: implement proper error handling and conversions
+
+        //     let id: i64 = row.get(0).map_err(StoreError::QueryError)?;
+        //     let nonce: i64 = row.get(1).map_err(StoreError::QueryError)?;
+
+        //     let vault_root: String = row.get(2).map_err(StoreError::QueryError)?;
+        //     let storage_root: String = row.get(3).map_err(StoreError::QueryError)?;
+        //     let code_root: String = row.get(4).map_err(StoreError::QueryError)?;
+
+        //     result.push(AccountStub::new(
+        //         (id as u64)
+        //             .try_into()
+        //             .expect("Conversion from stored AccountID should not panic"),
+        //         (nonce as u64).into(),
+        //         serde_json::from_str(&vault_root).map_err(StoreError::DataDeserializationError)?,
+        //         serde_json::from_str(&storage_root)
+        //             .map_err(StoreError::DataDeserializationError)?,
+        //         serde_json::from_str(&code_root).map_err(StoreError::DataDeserializationError)?,
+        //     ));
+        // }
+
+        // Ok(result)
+    }
+
+    pub async fn insert_account_with_metadata(
+        &mut self,
+        account: &Account,
+    ) -> Result<(), StoreError> {
+        let tx: DatabaseTransaction = self.db.begin().await.unwrap();
+
+        Self::insert_account_code(&tx, account.code()).await?;
+        Self::insert_account_storage(&tx, account.storage()).await?;
+        Self::insert_account_vault(&tx, account.vault()).await?;
+        Self::insert_account(&tx, account).await?;
+
+        tx.commit().await.map_err(StoreError::QueryError)?;
+        Ok(())
+    }
+
+    pub async fn insert_account_code(
+        tx: &DatabaseTransaction,
+        account_code: &AccountCode,
+    ) -> Result<(), StoreError> {
+        let account_code = account_code::ActiveModel {
+            root: Set(serde_json::to_string(&account_code.root())
+                .unwrap()
+                .into_bytes()),
+            procedures: Set(serde_json::to_string(account_code.procedures())
+                .unwrap()
+                .into_bytes()),
+            module: Set(account_code.module().to_bytes(AstSerdeOptions {
+                serialize_imports: true,
+            })),
+        };
+        let _account_code = account_code
+            .insert(tx)
+            .await
             .map_err(StoreError::QueryError)?;
 
-        let mut rows = stmt.query([]).map_err(StoreError::QueryError)?;
-        let mut result = Vec::new();
-        while let Some(row) = rows.next().map_err(StoreError::QueryError)? {
-            // TODO: implement proper error handling and conversions
-
-            let id: i64 = row.get(0).map_err(StoreError::QueryError)?;
-            let nonce: i64 = row.get(1).map_err(StoreError::QueryError)?;
-
-            let vault_root: String = row.get(2).map_err(StoreError::QueryError)?;
-            let storage_root: String = row.get(3).map_err(StoreError::QueryError)?;
-            let code_root: String = row.get(4).map_err(StoreError::QueryError)?;
-
-            result.push(AccountStub::new(
-                (id as u64)
-                    .try_into()
-                    .expect("Conversion from stored AccountID should not panic"),
-                (nonce as u64).into(),
-                serde_json::from_str(&vault_root).map_err(StoreError::DataDeserializationError)?,
-                serde_json::from_str(&storage_root)
-                    .map_err(StoreError::DataDeserializationError)?,
-                serde_json::from_str(&code_root).map_err(StoreError::DataDeserializationError)?,
-            ));
-        }
-
-        Ok(result)
+        Ok(())
     }
 
-    pub fn insert_account(&self, account: &Account) -> Result<(), StoreError> {
-        let id: u64 = account.id().into();
-        let code_root = serde_json::to_string(&account.code().root())
-            .map_err(StoreError::InputSerializationError)?;
-        let storage_root = serde_json::to_string(&account.storage().root())
-            .map_err(StoreError::InputSerializationError)?;
-        let vault_root = serde_json::to_string(&account.vault().commitment())
-            .map_err(StoreError::InputSerializationError)?;
-
-        self.db.execute(
-            "INSERT INTO accounts (id, code_root, storage_root, vault_root, nonce, committed) VALUES (?, ?, ?, ?, ?, ?)",
-            params![
-                id as i64,
-                code_root,
-                storage_root,
-                vault_root,
-                account.nonce().inner() as i64,
-                account.is_on_chain(),
-            ],
-        )
-        .map(|_| ())
-        .map_err(StoreError::QueryError)
-    }
-
-    pub fn insert_account_code(&self, account_code: &AccountCode) -> Result<(), StoreError> {
-        let code_root = serde_json::to_string(&account_code.root())
-            .map_err(StoreError::InputSerializationError)?;
-        let code = serde_json::to_string(account_code.procedures())
-            .map_err(StoreError::InputSerializationError)?;
-        let module = account_code.module().to_bytes(AstSerdeOptions {
-            serialize_imports: true,
-        });
-
-        self.db
-            .execute(
-                "INSERT INTO account_code (root, procedures, module) VALUES (?, ?, ?)",
-                params![code_root, code, module,],
-            )
-            .map(|_| ())
-            .map_err(StoreError::QueryError)
-    }
-
-    pub fn insert_account_storage(
-        &self,
+    pub async fn insert_account_storage(
+        tx: &DatabaseTransaction,
         account_storage: &AccountStorage,
     ) -> Result<(), StoreError> {
-        let storage_root = serde_json::to_string(&account_storage.root())
-            .map_err(StoreError::InputSerializationError)?;
-
         let storage_slots: BTreeMap<u64, &Word> = account_storage.slots().leaves().collect();
-        let storage_slots =
-            serde_json::to_string(&storage_slots).map_err(StoreError::InputSerializationError)?;
+        let storage_slots = serde_json::to_string(&storage_slots)
+            .map_err(StoreError::InputSerializationError)
+            .unwrap()
+            .into_bytes();
 
-        self.db
-            .execute(
-                "INSERT INTO account_storage (root, slots) VALUES (?, ?)",
-                params![storage_root, storage_slots],
-            )
-            .map(|_| ())
-            .map_err(StoreError::QueryError)
+        let account_storage = account_storage::ActiveModel {
+            root: Set(serde_json::to_string(&account_storage.root())
+                .unwrap()
+                .into_bytes()),
+            slots: Set(storage_slots),
+        };
+
+        let _account_storage = account_storage
+            .insert(tx)
+            .await
+            .map_err(StoreError::QueryError)?;
+
+        Ok(())
     }
 
-    pub fn insert_account_vault(&self, account_vault: &AccountVault) -> Result<(), StoreError> {
-        let vault_root = serde_json::to_string(&account_vault.commitment())
-            .map_err(StoreError::InputSerializationError)?;
-
+    pub async fn insert_account_vault(
+        tx: &DatabaseTransaction,
+        account_vault: &AccountVault,
+    ) -> Result<(), StoreError> {
         let assets: Vec<Asset> = account_vault.assets().collect();
         let assets = serde_json::to_string(&assets).map_err(StoreError::InputSerializationError)?;
 
-        self.db
-            .execute(
-                "INSERT INTO account_vaults (root, assets) VALUES (?, ?)",
-                params![vault_root, assets],
-            )
-            .map(|_| ())
-            .map_err(StoreError::QueryError)
+        let account_vault = account_vaults::ActiveModel {
+            root: Set(serde_json::to_string(&account_vault.commitment())
+                .unwrap()
+                .into_bytes()),
+            assets: Set(serde_json::to_string(&assets).unwrap().into_bytes()),
+        };
+
+        let _account_vault = account_vault
+            .insert(tx)
+            .await
+            .map_err(StoreError::QueryError)?;
+
+        Ok(())
+    }
+
+    pub async fn insert_account(
+        tx: &DatabaseTransaction,
+        account: &Account,
+    ) -> Result<(), StoreError> {
+        let id: u64 = account.id().into();
+        let account = accounts::ActiveModel {
+            id: Set(id as i64),
+            code_root: Set(serde_json::to_string(&account.code().root())
+                .unwrap()
+                .into_bytes()),
+            storage_root: Set(serde_json::to_string(&account.storage().root())
+                .unwrap()
+                .into_bytes()),
+            vault_root: Set(serde_json::to_string(&account.vault().commitment())
+                .unwrap()
+                .into_bytes()),
+            nonce: Set(account.nonce().inner() as i64),
+            committed: Set(account.is_on_chain()),
+        };
+
+        let _account = account.insert(tx).await.map_err(StoreError::QueryError)?;
+
+        Ok(())
     }
 
     // NOTES
@@ -170,85 +212,88 @@ impl Store {
 
     /// Retrieves the input notes from the database
     pub fn get_input_notes(&self) -> Result<Vec<RecordedNote>, StoreError> {
-        const QUERY: &str = "SELECT script, inputs, vault, serial_num, sender_id, tag, num_assets, inclusion_proof FROM input_notes";
+        todo!()
+        // const QUERY: &str = "SELECT script, inputs, vault, serial_num, sender_id, tag, num_assets, inclusion_proof FROM input_notes";
 
-        self.db
-            .prepare(QUERY)
-            .map_err(StoreError::QueryError)?
-            .query_map([], parse_input_note_columns)
-            .expect("no binding parameters used in query")
-            .map(|result| {
-                result
-                    .map_err(StoreError::ColumnParsingError)
-                    .and_then(parse_input_note)
-            })
-            .collect::<Result<Vec<RecordedNote>, _>>()
+        // self.db
+        //     .prepare(QUERY)
+        //     .map_err(StoreError::QueryError)?
+        //     .query_map([], parse_input_note_columns)
+        //     .expect("no binding parameters used in query")
+        //     .map(|result| {
+        //         result
+        //             .map_err(StoreError::ColumnParsingError)
+        //             .and_then(parse_input_note)
+        //     })
+        //     .collect::<Result<Vec<RecordedNote>, _>>()
     }
 
     /// Retrieves the input note with the specified hash from the database
     pub fn get_input_note_by_hash(&self, hash: Digest) -> Result<RecordedNote, StoreError> {
-        let query_hash =
-            serde_json::to_string(&hash).map_err(StoreError::InputSerializationError)?;
-        const QUERY: &str = "SELECT script, inputs, vault, serial_num, sender_id, tag, num_assets, inclusion_proof FROM input_notes WHERE hash = ?";
+        todo!()
+        // let query_hash =
+        //     serde_json::to_string(&hash).map_err(StoreError::InputSerializationError)?;
+        // const QUERY: &str = "SELECT script, inputs, vault, serial_num, sender_id, tag, num_assets, inclusion_proof FROM input_notes WHERE hash = ?";
 
-        self.db
-            .prepare(QUERY)
-            .map_err(StoreError::QueryError)?
-            .query_map(params![query_hash.to_string()], parse_input_note_columns)
-            .map_err(StoreError::QueryError)?
-            .map(|result| {
-                result
-                    .map_err(StoreError::ColumnParsingError)
-                    .and_then(parse_input_note)
-            })
-            .next()
-            .ok_or(StoreError::InputNoteNotFound(hash))?
+        // self.db
+        //     .prepare(QUERY)
+        //     .map_err(StoreError::QueryError)?
+        //     .query_map(params![query_hash.to_string()], parse_input_note_columns)
+        //     .map_err(StoreError::QueryError)?
+        //     .map(|result| {
+        //         result
+        //             .map_err(StoreError::ColumnParsingError)
+        //             .and_then(parse_input_note)
+        //     })
+        //     .next()
+        //     .ok_or(StoreError::InputNoteNotFound(hash))?
     }
 
     /// Inserts the provided input note into the database
     pub fn insert_input_note(&self, recorded_note: &RecordedNote) -> Result<(), StoreError> {
-        let (
-            hash,
-            nullifier,
-            script,
-            vault,
-            inputs,
-            serial_num,
-            sender_id,
-            tag,
-            num_assets,
-            inclusion_proof,
-            recipients,
-            status,
-            commit_height,
-        ) = serialize_input_note(recorded_note)?;
+        todo!()
+        // let (
+        //     hash,
+        //     nullifier,
+        //     script,
+        //     vault,
+        //     inputs,
+        //     serial_num,
+        //     sender_id,
+        //     tag,
+        //     num_assets,
+        //     inclusion_proof,
+        //     recipients,
+        //     status,
+        //     commit_height,
+        // ) = serialize_input_note(recorded_note)?;
 
-        const QUERY: &str = "\
-        INSERT INTO input_notes
-            (hash, nullifier, script, vault, inputs, serial_num, sender_id, tag, num_assets, inclusion_proof, recipients, status, commit_height)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        // const QUERY: &str = "\
+        // INSERT INTO input_notes
+        //     (hash, nullifier, script, vault, inputs, serial_num, sender_id, tag, num_assets, inclusion_proof, recipients, status, commit_height)
+        //  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        self.db
-            .execute(
-                QUERY,
-                params![
-                    hash,
-                    nullifier,
-                    script,
-                    vault,
-                    inputs,
-                    serial_num,
-                    sender_id,
-                    tag,
-                    num_assets,
-                    inclusion_proof,
-                    recipients,
-                    status,
-                    commit_height
-                ],
-            )
-            .map_err(StoreError::QueryError)
-            .map(|_| ())
+        // self.db
+        //     .execute(
+        //         QUERY,
+        //         params![
+        //             hash,
+        //             nullifier,
+        //             script,
+        //             vault,
+        //             inputs,
+        //             serial_num,
+        //             sender_id,
+        //             tag,
+        //             num_assets,
+        //             inclusion_proof,
+        //             recipients,
+        //             status,
+        //             commit_height
+        //         ],
+        //     )
+        //     .map_err(StoreError::QueryError)
+        //     .map(|_| ())
     }
 }
 
@@ -363,12 +408,41 @@ fn serialize_input_note(
 
 #[cfg(test)]
 pub mod tests {
+    use migration::{Migrator, MigratorTrait};
+    use sea_orm::Database;
     use std::env::temp_dir;
     use uuid::Uuid;
+
+    use miden_lib::assembler::assembler;
+    use mock::mock::account;
+
+    use super::Store;
 
     pub fn create_test_store_path() -> std::path::PathBuf {
         let mut temp_file = temp_dir();
         temp_file.push(format!("{}.sqlite3", Uuid::new_v4()));
         temp_file
+    }
+
+    async fn create_test_store() -> Store {
+        let temp_file = create_test_store_path();
+        let url = format!("sqlite://{}?mode=rwc", temp_file.to_string_lossy());
+        let db = Database::connect(&url)
+            .await
+            .expect("Failed to setup the database");
+        Migrator::up(&db, None)
+            .await
+            .expect("Failed to run migrations for tests");
+        Store { db }
+    }
+
+    #[tokio::test]
+    async fn insert_same_account_twice_fails() {
+        let mut store = create_test_store().await;
+        let assembler = assembler();
+        let account = account::mock_new_account(&assembler);
+
+        assert!(store.insert_account_with_metadata(&account).await.is_ok());
+        assert!(store.insert_account_with_metadata(&account).await.is_err());
     }
 }

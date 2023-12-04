@@ -33,9 +33,11 @@ pub enum Command {
 
 /// CLI entry point
 impl Cli {
-    pub fn execute(&self) -> Result<(), String> {
+    pub async fn execute(&self) -> Result<(), String> {
         // create a client
-        let client = Client::new(ClientConfig::default()).map_err(|err| err.to_string())?;
+        let client = Client::new(ClientConfig::default())
+            .await
+            .map_err(|err| err.to_string())?;
 
         // execute cli command
         match &self.action {
