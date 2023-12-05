@@ -1,3 +1,4 @@
+use crypto::dsa::rpo_falcon512::KeyPair;
 use objects::{
     accounts::{Account, AccountId, AccountStub},
     notes::RecordedNote,
@@ -49,6 +50,17 @@ impl Client {
     /// Returns a reference to the store
     pub fn store(&self) -> &Store {
         &self.store
+    }
+
+    // ACCOUNT INSERTION
+    // --------------------------------------------------------------------------------------------
+
+    /// Inserts a new account into the client's store.
+    pub async fn insert_account(&mut self, account: &Account) -> Result<(), ClientError> {
+        self.store
+            .insert_account_with_metadata(account)
+            .await
+            .map_err(ClientError::StoreError)
     }
 
     // ACCOUNT DATA RETRIEVAL
