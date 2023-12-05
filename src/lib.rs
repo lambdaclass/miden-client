@@ -57,8 +57,8 @@ impl Client {
     /// Returns summary info about the accounts managed by this client.
     ///
     /// TODO: replace `AccountStub` with a more relevant structure.
-    pub fn get_accounts(&self) -> Result<Vec<AccountStub>, ClientError> {
-        self.store.get_accounts().map_err(|err| err.into())
+    pub async fn get_accounts(&self) -> Result<Vec<AccountStub>, ClientError> {
+        self.store.get_accounts().await.map_err(|err| err.into())
     }
 
     /// Returns historical states for the account with the specified ID.

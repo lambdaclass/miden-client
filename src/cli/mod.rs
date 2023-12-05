@@ -41,7 +41,7 @@ impl Cli {
 
         // execute cli command
         match &self.action {
-            Command::Account(account) => account.execute(client),
+            Command::Account(account) => account.execute(client).await,
             Command::InputNotes(notes) => notes.execute(client),
             #[cfg(feature = "testing")]
             Command::TestData => {

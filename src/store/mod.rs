@@ -13,7 +13,8 @@ use rusqlite::{params, Connection};
 use entity::{account_code, account_keys, account_storage, account_vaults, accounts};
 use migration::{Migrator, MigratorTrait};
 use sea_orm::{
-    ActiveModelTrait, Database, DatabaseConnection, DatabaseTransaction, Set, TransactionTrait,
+    ActiveModelTrait, Database, DatabaseConnection, DatabaseTransaction, EntityTrait, Set,
+    TransactionTrait,
 };
 
 // TYPES
@@ -63,38 +64,24 @@ impl Store {
     // ACCOUNTS
     // --------------------------------------------------------------------------------------------
 
-    pub fn get_accounts(&self) -> Result<Vec<AccountStub>, StoreError> {
-        todo!()
-        // let mut stmt = self
-        //     .db
-        //     .prepare("SELECT id, nonce, vault_root, storage_root, code_root FROM accounts")
-        //     .map_err(StoreError::QueryError)?;
+    pub async fn get_accounts(&self) -> Result<Vec<AccountStub>, StoreError> {
+        let accounts: Vec<accounts::Model> = accounts::Entity::find().all(&self.db).await.unwrap();
+        let mut result = Vec::new();
+        for account in accounts {
+            // TODO: implement proper error handling and conversions
+            result.push(AccountStub::new(
+                (account.id as u64).try_into().unwrap(),
+                (account.nonce as u64).into(),
+                serde_json::from_str(&String::from_utf8(account.vault_root).unwrap())
+                    .map_err(StoreError::DataDeserializationError)?,
+                serde_json::from_str(&String::from_utf8(account.storage_root).unwrap())
+                    .map_err(StoreError::DataDeserializationError)?,
+                serde_json::from_str(&String::from_utf8(account.code_root).unwrap())
+                    .map_err(StoreError::DataDeserializationError)?,
+            ));
+        }
 
-        // let mut rows = stmt.query([]).map_err(StoreError::QueryError)?;
-        // let mut result = Vec::new();
-        // while let Some(row) = rows.next().map_err(StoreError::QueryError)? {
-        //     // TODO: implement proper error handling and conversions
-
-        //     let id: i64 = row.get(0).map_err(StoreError::QueryError)?;
-        //     let nonce: i64 = row.get(1).map_err(StoreError::QueryError)?;
-
-        //     let vault_root: String = row.get(2).map_err(StoreError::QueryError)?;
-        //     let storage_root: String = row.get(3).map_err(StoreError::QueryError)?;
-        //     let code_root: String = row.get(4).map_err(StoreError::QueryError)?;
-
-        //     result.push(AccountStub::new(
-        //         (id as u64)
-        //             .try_into()
-        //             .expect("Conversion from stored AccountID should not panic"),
-        //         (nonce as u64).into(),
-        //         serde_json::from_str(&vault_root).map_err(StoreError::DataDeserializationError)?,
-        //         serde_json::from_str(&storage_root)
-        //             .map_err(StoreError::DataDeserializationError)?,
-        //         serde_json::from_str(&code_root).map_err(StoreError::DataDeserializationError)?,
-        //     ));
-        // }
-
-        // Ok(result)
+        Ok(result)
     }
 
     pub async fn insert_account_with_metadata(

@@ -55,10 +55,10 @@ pub enum AccountTemplate {
 }
 
 impl AccountCmd {
-    pub fn execute(&self, client: Client) -> Result<(), String> {
+    pub async fn execute(&self, client: Client) -> Result<(), String> {
         match self {
             AccountCmd::List => {
-                list_accounts(client)?;
+                list_accounts(client).await?;
             }
             AccountCmd::New { template, deploy } => {
                 new_account(client, template, *deploy)?;
@@ -72,7 +72,7 @@ impl AccountCmd {
 // LIST ACCOUNTS
 // ================================================================================================
 
-fn list_accounts(client: Client) -> Result<(), String> {
+async fn list_accounts(client: Client) -> Result<(), String> {
     println!("{}", "-".repeat(240));
     println!(
         "{0: <18} | {1: <66} | {2: <66} | {3: <66} | {4: <15}",
@@ -80,7 +80,7 @@ fn list_accounts(client: Client) -> Result<(), String> {
     );
     println!("{}", "-".repeat(240));
 
-    let accounts = client.get_accounts().map_err(|err| err.to_string())?;
+    let accounts = client.get_accounts().await.map_err(|err| err.to_string())?;
 
     for acct in accounts {
         println!(
