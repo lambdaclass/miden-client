@@ -65,23 +65,24 @@ impl Store {
     // --------------------------------------------------------------------------------------------
 
     pub async fn get_accounts(&self) -> Result<Vec<AccountStub>, StoreError> {
-        let accounts: Vec<accounts::Model> = accounts::Entity::find().all(&self.db).await.unwrap();
-        let mut result = Vec::new();
-        for account in accounts {
-            // TODO: implement proper error handling and conversions
-            result.push(AccountStub::new(
-                (account.id as u64).try_into().unwrap(),
-                (account.nonce as u64).into(),
-                serde_json::from_str(&String::from_utf8(account.vault_root).unwrap())
-                    .map_err(StoreError::DataDeserializationError)?,
-                serde_json::from_str(&String::from_utf8(account.storage_root).unwrap())
-                    .map_err(StoreError::DataDeserializationError)?,
-                serde_json::from_str(&String::from_utf8(account.code_root).unwrap())
-                    .map_err(StoreError::DataDeserializationError)?,
-            ));
-        }
-
-        Ok(result)
+        Ok(accounts::Entity::find()
+            .all(&self.db)
+            .await
+            .unwrap()
+            .iter()
+            .map(|account| {
+                AccountStub::new(
+                    (account.id as u64).try_into().unwrap(),
+                    (account.nonce as u64).into(),
+                    serde_json::from_str(&String::from_utf8(account.vault_root.clone()).unwrap())
+                        .unwrap(),
+                    serde_json::from_str(&String::from_utf8(account.storage_root.clone()).unwrap())
+                        .unwrap(),
+                    serde_json::from_str(&String::from_utf8(account.code_root.clone()).unwrap())
+                        .unwrap(),
+                )
+            })
+            .collect())
     }
 
     pub async fn insert_account_with_metadata(
