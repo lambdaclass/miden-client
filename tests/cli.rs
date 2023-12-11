@@ -43,6 +43,6 @@ fn test_cli_list_accounts() -> Result<(), Box<dyn std::error::Error>> {
 
     run.assert()
         .success()
-        .stdout(predicate::str::contains("| storage root"));
+        .stdout(predicate::str::contains("│ account id"));
     Ok(())
 }
