@@ -37,3 +37,4 @@ predicates = "3.0.4"
 escargot = "0.5.8"
 uuid = { version = "1.6.1", features = ["serde", "v4"] }
 mock = { package = "miden-mock", git = "https://github.com/0xPolygonMiden/miden-base", branch = "main", default-features = false }
+vm-processor = { package = "miden-processor", git = "https://github.com/0xPolygonMiden/miden-vm.git", branch = "next", default-features = false }
