@@ -9,7 +9,7 @@ use objects::{
     assembly::ProgramAst,
     assets::Asset,
     notes::Note,
-    transaction::{ProvenTransaction, TransactionResult, TransactionScript, TransactionWitness},
+    transaction::{ProvenTransaction, ExecutedTransaction, TransactionScript, TransactionWitness},
     Digest,
 };
 use rand::Rng;
@@ -101,7 +101,7 @@ impl TransactionStub {
 /// Contains information about the execution of a transaction, useful for proving and tracking
 /// new notes.
 pub struct TransactionExecutionResult {
-    result: TransactionResult,
+    result: ExecutedTransaction,
     script: Option<TransactionScript>,
     created_notes: Vec<Note>,
 }
@@ -111,7 +111,7 @@ impl TransactionExecutionResult {
     // --------------------------------------------------------------------------------------------
 
     pub fn new(
-        result: TransactionResult,
+        result: ExecutedTransaction,
         script: Option<TransactionScript>,
         created_notes: Vec<Note>,
     ) -> TransactionExecutionResult {
@@ -123,10 +123,10 @@ impl TransactionExecutionResult {
     }
 
     pub fn get_witness(&self) -> TransactionWitness {
-        self.result.clone().into_witness()
+        self.result.clone().into()
     }
 
-    pub fn result(&self) -> &TransactionResult {
+    pub fn result(&self) -> &ExecutedTransaction {
         &self.result
     }
 
@@ -263,7 +263,7 @@ impl Client {
     ) -> Result<(), ClientError> {
         let transaction_prover = TransactionProver::new(ProvingOptions::default());
         let proven_transaction = transaction_prover
-            .prove_transaction_witness(transaction_execution_result.get_witness())
+            .prove_transaction(transaction_execution_result.get_witness())
             .map_err(ClientError::TransactionProvingError)?;
 
         self.submit_proven_transaction_request(proven_transaction.clone())
