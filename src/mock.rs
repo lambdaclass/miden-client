@@ -3,7 +3,8 @@ use crate::client::{Client, FILTER_ID_SHIFT};
 use crate::store::mock_executor_data_store::MockDataStore;
 use crypto::{dsa::rpo_falcon512::KeyPair, StarkField};
 use crypto::{Felt, FieldElement};
-use miden_lib::assembler::assembler;
+use miden_lib::accounts::{faucets, wallets};
+use miden_lib::transaction::TransactionKernel;
 use miden_node_proto::block_header::BlockHeader as NodeBlockHeader;
 use miden_node_proto::merkle::MerklePath;
 use miden_node_proto::note::NoteSyncRecord;
@@ -94,7 +95,7 @@ fn generate_sync_state_mock_requests() -> BTreeMap<SyncStateRequest, SyncStateRe
     // create sync state requests
     let mut requests = BTreeMap::new();
 
-    let assembler = assembler();
+    let assembler = TransactionKernel::assembler();
     let account = mock_account(
         None,
         Felt::ONE,
@@ -206,7 +207,7 @@ pub fn insert_mock_data(client: &mut Client) {
         AssetPreservationStatus::Preserved,
     );
 
-    let assembler = assembler();
+    let assembler = TransactionKernel::assembler();
     let account = mock_account(
         None,
         Felt::ONE,
@@ -241,13 +242,13 @@ pub async fn create_mock_transaction(client: &mut Client) {
     let auth_scheme: miden_lib::AuthScheme = miden_lib::AuthScheme::RpoFalcon512 {
         pub_key: key_pair.public_key(),
     };
-    let _assembler = miden_lib::assembler::assembler();
+    let _assembler = TransactionKernel::assembler();
 
     let mut rng = rand::thread_rng();
     // we need to use an initial seed to create the wallet account
     let init_seed: [u8; 32] = rand::Rng::gen(&mut rng);
 
-    let (sender_account, _) = miden_lib::wallets::create_basic_wallet(
+    let (sender_account, _) = wallets::create_basic_wallet(
         init_seed,
         auth_scheme,
         AccountType::RegularAccountImmutableCode,
@@ -269,7 +270,7 @@ pub async fn create_mock_transaction(client: &mut Client) {
     // we need to use an initial seed to create the wallet account
     let init_seed: [u8; 32] = rand::Rng::gen(&mut rng);
 
-    let (target_account, _) = miden_lib::wallets::create_basic_wallet(
+    let (target_account, _) = wallets::create_basic_wallet(
         init_seed,
         auth_scheme,
         AccountType::RegularAccountImmutableCode,
@@ -293,7 +294,7 @@ pub async fn create_mock_transaction(client: &mut Client) {
 
     let max_supply = 10000u64.to_le_bytes();
 
-    let (faucet, _) = miden_lib::faucets::create_basic_fungible_faucet(
+    let (faucet, _) = faucets::create_basic_fungible_faucet(
         init_seed,
         objects::assets::TokenSymbol::new("MOCK").unwrap(),
         4u8,
