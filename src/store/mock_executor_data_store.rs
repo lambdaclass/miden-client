@@ -1,5 +1,5 @@
 use miden_lib::assembler::assembler;
-use miden_tx::{DataStore, DataStoreError};
+use miden_tx::{DataStore, DataStoreError, TransactionInputs};
 use mock::constants::{ACCOUNT_ID_SENDER, DEFAULT_ACCOUNT_CODE};
 use mock::mock::account::MockAccountType;
 use mock::mock::notes::AssetPreservationStatus;
@@ -76,34 +76,26 @@ impl Default for MockDataStore {
 
 impl DataStore for MockDataStore {
     /// NOTE: This method assumes the MockDataStore was created accordingly using `with_existing()`
-    fn get_transaction_data(
-        &self,
-        _account_id: AccountId,
-        _block_num: u32,
-        notes: &[NoteOrigin],
-    ) -> Result<
-        (
-            Account,
-            BlockHeader,
-            ChainMmr,
-            Vec<RecordedNote>,
-            AdviceInputs,
-        ),
-        DataStoreError,
-    > {
+    fn get_transaction_inputs(
+            &self,
+            account_id: AccountId,
+            block_num: u32,
+            notes: &[NoteOrigin],
+        ) -> Result<miden_tx::TransactionInputs, DataStoreError> {
         let origins = self
             .notes
             .iter()
             .map(|note| note.origin())
             .collect::<Vec<_>>();
         notes.iter().all(|note| origins.contains(&note));
-        Ok((
-            self.account.clone(),
-            self.block_header,
-            self.block_chain.clone(),
-            self.notes.clone(),
-            self.auxiliary_data.clone(),
-        ))
+        Ok(TransactionInputs {
+            account: self.account.clone(),
+            account_seed: None,
+            block_header: self.block_header,
+            block_chain: self.block_chain.clone(),
+            input_notes: self.notes.clone(),
+            aux_data: self.auxiliary_data.clone(),
+        })
     }
 
     fn get_account_code(&self, _account_id: AccountId) -> Result<ModuleAst, DataStoreError> {
