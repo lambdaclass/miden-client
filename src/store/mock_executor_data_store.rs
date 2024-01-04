@@ -12,8 +12,8 @@ use objects::{
     assembly::ProgramAst,
     assets::{Asset, FungibleAsset},
     crypto::{dsa::rpo_falcon512::KeyPair, utils::Serializable},
-    notes::{Note, NoteOrigin, NoteScript, RecordedNote},
-    transaction::InputNotes,
+    notes::{Note, NoteOrigin, NoteScript},
+    transaction::{InputNotes, InputNote},
     BlockHeader, Felt, Word,
 };
 
@@ -25,7 +25,7 @@ pub struct MockDataStore {
     pub account: Account,
     pub block_header: BlockHeader,
     pub block_chain: ChainMmr,
-    pub notes: Vec<RecordedNote>,
+    pub notes: Vec<InputNote>,
 }
 
 impl MockDataStore {

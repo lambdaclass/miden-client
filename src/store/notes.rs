@@ -9,7 +9,8 @@ use objects::notes::{Note, NoteInclusionProof, NoteScript};
 
 use objects::{
     accounts::AccountId,
-    notes::{NoteMetadata, RecordedNote},
+    notes::NoteMetadata,
+    transaction::InputNote,
     Digest, Felt,
 };
 use rusqlite::params;
@@ -119,8 +120,8 @@ impl From<Note> for InputNoteRecord {
     }
 }
 
-impl From<RecordedNote> for InputNoteRecord {
-    fn from(recorded_note: RecordedNote) -> Self {
+impl From<InputNote> for InputNoteRecord {
+    fn from(recorded_note: InputNote) -> Self {
         InputNoteRecord {
             note: recorded_note.note().clone(),
             inclusion_proof: Some(recorded_note.proof().clone()),
