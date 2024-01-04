@@ -36,7 +36,7 @@ async fn test_input_notes_round_trip() {
     .unwrap();
 
     // generate test data
-    let (_, _, _, recorded_notes, _) = mock_inputs(
+    let (_, _, _, recorded_notes) = mock_inputs(
         MockAccountType::StandardExisting,
         AssetPreservationStatus::Preserved,
     );
@@ -69,7 +69,7 @@ async fn test_get_input_note() {
     .unwrap();
 
     // generate test data
-    let (_, _, _, recorded_notes, _) = mock_inputs(
+    let (_, _, _, recorded_notes) = mock_inputs(
         MockAccountType::StandardExisting,
         AssetPreservationStatus::Preserved,
     );

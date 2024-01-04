@@ -18,7 +18,6 @@ use mock::mock::account::mock_account;
 use mock::mock::block;
 use mock::mock::notes::mock_notes;
 use objects::utils::collections::BTreeMap;
-use objects::AdviceInputs;
 
 use crate::store::accounts::AuthInfo;
 
@@ -78,7 +77,7 @@ fn generate_sync_state_mock_requests() -> BTreeMap<SyncStateRequest, SyncStateRe
     };
 
     // generate test data
-    let (account, _, _, recorded_notes, _) = mock_inputs(
+    let (account, _, _, recorded_notes) = mock_inputs(
         MockAccountType::StandardExisting,
         AssetPreservationStatus::Preserved,
     );
@@ -101,7 +100,6 @@ fn generate_sync_state_mock_requests() -> BTreeMap<SyncStateRequest, SyncStateRe
         Felt::ONE,
         None,
         &assembler,
-        &mut AdviceInputs::default(),
     );
     let (_consumed, created_notes) = mock_notes(&assembler, &AssetPreservationStatus::Preserved);
 
@@ -203,7 +201,7 @@ pub fn insert_mock_data(client: &mut Client) {
     };
 
     // generate test data
-    let (_account, _, _, recorded_notes, _) = mock_inputs(
+    let (_account, _, _, recorded_notes) = mock_inputs(
         MockAccountType::StandardExisting,
         AssetPreservationStatus::Preserved,
     );
@@ -214,7 +212,6 @@ pub fn insert_mock_data(client: &mut Client) {
         Felt::ONE,
         None,
         &assembler,
-        &mut AdviceInputs::default(),
     );
     let (_consumed, created_notes) = mock_notes(&assembler, &AssetPreservationStatus::Preserved);
 

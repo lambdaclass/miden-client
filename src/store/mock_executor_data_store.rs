@@ -25,12 +25,11 @@ pub struct MockDataStore {
     pub block_header: BlockHeader,
     pub block_chain: ChainMmr,
     pub notes: Vec<RecordedNote>,
-    pub auxiliary_data: AdviceInputs,
 }
 
 impl MockDataStore {
     pub fn new() -> Self {
-        let (account, block_header, block_chain, consumed_notes, auxiliary_data) = mock_inputs(
+        let (account, block_header, block_chain, consumed_notes) = mock_inputs(
             MockAccountType::StandardExisting,
             AssetPreservationStatus::Preserved,
         );
@@ -39,7 +38,6 @@ impl MockDataStore {
             block_header,
             block_chain,
             notes: consumed_notes,
-            auxiliary_data,
         }
     }
 
@@ -63,7 +61,6 @@ impl MockDataStore {
             block_header,
             block_chain,
             notes: consumed_notes,
-            auxiliary_data: auxiliary_data_inputs,
         }
     }
 }
@@ -78,8 +75,8 @@ impl DataStore for MockDataStore {
     /// NOTE: This method assumes the MockDataStore was created accordingly using `with_existing()`
     fn get_transaction_inputs(
             &self,
-            account_id: AccountId,
-            block_num: u32,
+            _account_id: AccountId,
+            _block_num: u32,
             notes: &[NoteOrigin],
         ) -> Result<miden_tx::TransactionInputs, DataStoreError> {
         let origins = self
@@ -94,7 +91,6 @@ impl DataStore for MockDataStore {
             block_header: self.block_header,
             block_chain: self.block_chain.clone(),
             input_notes: self.notes.clone(),
-            aux_data: self.auxiliary_data.clone(),
         })
     }
 
