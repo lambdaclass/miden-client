@@ -13,6 +13,7 @@ use objects::{
     assets::{Asset, FungibleAsset},
     crypto::{dsa::rpo_falcon512::KeyPair, utils::Serializable},
     notes::{Note, NoteOrigin, NoteScript, RecordedNote},
+    transaction::InputNotes,
     BlockHeader, Felt, Word,
 };
 
@@ -75,23 +76,23 @@ impl DataStore for MockDataStore {
     /// NOTE: This method assumes the MockDataStore was created accordingly using `with_existing()`
     fn get_transaction_inputs(
             &self,
-            _account_id: AccountId,
-            _block_num: u32,
-            notes: &[NoteOrigin],
-        ) -> Result<miden_tx::TransactionInputs, DataStoreError> {
+            account_id: AccountId,
+            block_ref: u32,
+            notes: &[objects::notes::NoteId],
+        ) -> Result<TransactionInputs, DataStoreError> {
         let origins = self
             .notes
             .iter()
             .map(|note| note.origin())
             .collect::<Vec<_>>();
         notes.iter().all(|note| origins.contains(&note));
-        Ok(TransactionInputs {
-            account: self.account.clone(),
-            account_seed: None,
-            block_header: self.block_header,
-            block_chain: self.block_chain.clone(),
-            input_notes: self.notes.clone(),
-        })
+        Ok(TransactionInputs::new(
+            self.account.clone(),
+            None,
+            self.block_header,
+            self.block_chain.clone(),
+            InputNotes::new(self.notes.clone()).unwrap(),
+        ).unwrap())
     }
 
     fn get_account_code(&self, _account_id: AccountId) -> Result<ModuleAst, DataStoreError> {
