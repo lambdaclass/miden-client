@@ -3,7 +3,9 @@ use super::Client;
 #[cfg(test)]
 use crate::errors::ClientError;
 #[cfg(test)]
-use objects::BlockHeader;
+use objects::{BlockHeader, Digest};
+#[cfg(test)]
+use crypto::merkle::PartialMmr;
 
 impl Client {
     #[cfg(test)]
@@ -21,4 +23,9 @@ impl Client {
 
         Ok(headers)
     }
+
+    #[cfg(test)]
+    pub fn build_partial_mmr_from_client_state(&self, block_number: u32, blocks: &[(u32, Digest)]) -> PartialMmr {
+        self.store.get_partial_mmr_for_blocks(block_number, blocks).unwrap()
+    } 
 }

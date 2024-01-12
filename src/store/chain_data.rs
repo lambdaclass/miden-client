@@ -7,7 +7,7 @@ use crate::errors::StoreError;
 use clap::error::Result;
 
 use crypto::merkle::{InOrderIndex, MerklePath, MmrPeaks, PartialMmr};
-use objects::{transaction::InputNote, BlockHeader, Digest};
+use objects::{BlockHeader, Digest};
 use rusqlite::{params, OptionalExtension, Transaction};
 
 type SerializedBlockHeaderData = (i64, String, String, String, String);

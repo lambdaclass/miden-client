@@ -29,6 +29,7 @@ use mock::{
 use objects::{
     accounts::{AccountId, AccountStub},
     assets::{FungibleAsset, TokenSymbol},
+    Digest,
     transaction::InputNotes,
 };
 
@@ -322,7 +323,7 @@ async fn test_sync_state() {
     .unwrap();
 
     // generate test data
-    crate::mock::insert_mock_data(&mut client);
+    let (last_block_header, _chain_mmr) = crate::mock::insert_mock_data(&mut client);
 
     // assert that we have no consumed nor pending notes prior to syncing state
     assert_eq!(
@@ -376,6 +377,31 @@ async fn test_sync_state() {
             .1
             .chain_tip
     );
+
+    // verify that we inserted the latest block into the db via the client
+    let latest_block = client.get_latest_block_num().unwrap();
+    assert_eq!(block_num, latest_block);
+    assert_eq!(
+        last_block_header,
+        client
+            .get_block_headers(latest_block, latest_block)
+            .unwrap()[0]
+    );
+
+    // Try reconstructing the chain_mmr from what's in the database
+    let tracked_nodes : Vec<(u32, Digest)> = client.get_block_headers(0, latest_block).unwrap()
+        .into_iter()
+        .map(|block_header| (block_header.block_num(), block_header.hash()))
+        .collect();
+        
+    let partial_mmr = client.build_partial_mmr_from_client_state(latest_block, &tracked_nodes);
+
+    // Since Mocked data contains two sync updates we should be "tracking" those blocks
+    assert!(partial_mmr.open(0).unwrap().is_none());
+    assert!(partial_mmr.open(1).unwrap().is_none());
+    assert!(partial_mmr.open(2).unwrap().is_some());
+    assert!(partial_mmr.open(3).unwrap().is_none());
+    assert!(partial_mmr.open(4).unwrap().is_some());
 }
 
 #[tokio::test]
