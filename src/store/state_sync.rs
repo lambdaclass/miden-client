@@ -146,7 +146,7 @@ impl Store {
                     .map_err(StoreError::MmrError)?
                     .into()
             } else {
-                PartialMmr::from_peaks(current_peaks)
+                dbg!(PartialMmr::from_peaks(current_peaks))
             };
 
             // apply the delta
@@ -157,7 +157,7 @@ impl Store {
 
             Store::insert_chain_mmr_nodes(&tx, new_authentication_nodes)?;
 
-            Store::insert_block_header(&tx, block_header, partial_mmr.peaks())?;
+            Store::insert_block_header(&tx, block_header, dbg!(partial_mmr.peaks()))?;
         }
 
         // update tracked notes

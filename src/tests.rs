@@ -323,7 +323,7 @@ async fn test_sync_state() {
     .unwrap();
 
     // generate test data
-    let (last_block_header, _chain_mmr) = crate::mock::insert_mock_data(&mut client);
+    let (tracked_block_headers, _chain_mmr) = crate::mock::insert_mock_data(&mut client);
 
     // assert that we have no consumed nor pending notes prior to syncing state
     assert_eq!(
@@ -382,7 +382,7 @@ async fn test_sync_state() {
     let latest_block = client.get_latest_block_num().unwrap();
     assert_eq!(block_num, latest_block);
     assert_eq!(
-        last_block_header,
+        *tracked_block_headers.last().unwrap(),
         client
             .get_block_headers(latest_block, latest_block)
             .unwrap()[0]
