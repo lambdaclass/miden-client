@@ -124,28 +124,17 @@ impl Store {
     /// to prior blocks), this builds a PartialMmr sufficient to prove the block inclusion of the
     /// notes corresponding blocks and a dictionary containing the tracked node numbers along with
     /// their hash.
-    pub fn get_partial_mmr_for_notes(
+    pub fn get_partial_mmr_for_blocks(
         &self,
         block_num: u32,
-        notes_to_consume: &[InputNote],
-    ) -> Result<(PartialMmr, BTreeMap<u32, Digest>), StoreError> {
+        blocks: &[(u32, objects::Digest)],
+    ) -> Result<PartialMmr, StoreError> {
         let current_peaks = self.get_chain_mmr_peaks_by_block_num(block_num).unwrap();
-
-        let notes_blocks: Result<Vec<(u32, objects::Digest)>, StoreError> = notes_to_consume
-            .iter()
-            .map(|input_note| {
-                let note_block_num = input_note.proof().origin().block_num;
-                let block_header = self.get_block_header_by_num(note_block_num)?;
-
-                Ok((block_header.block_num(), block_header.hash()))
-            })
-            .collect();
-        let notes_blocks = notes_blocks?;
 
         let mut partial_mmr = PartialMmr::from_peaks(current_peaks);
         let chain_mmr_authentication_nodes = self.get_chain_mmr_nodes().unwrap();
 
-        for (block_num, node_hash) in &notes_blocks {
+        for (block_num, node_hash) in blocks {
             let mut nodes = Vec::new();
             let mut idx = InOrderIndex::from_leaf_pos(*block_num as usize);
 
@@ -158,7 +147,7 @@ impl Store {
                 .map_err(StoreError::MmrError)?;
         }
 
-        Ok((partial_mmr, notes_blocks.into_iter().collect()))
+        Ok(partial_mmr)
     }
 }
 
