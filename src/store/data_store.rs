@@ -58,7 +58,6 @@ impl DataStore for SqliteDataStore {
         // TODO:
         //  - To build the return (partial) ChainMmr: From the block numbers in each note.origin(), get the list of block headers
         //    and construct the partial Mmr
-        
         let notes_blocks: Result<Vec<(u32, objects::Digest)>, DataStoreError> = list_of_notes
             .iter()
             .map(|input_note| {

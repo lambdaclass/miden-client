@@ -87,7 +87,7 @@ impl MockRpcApi {
 }
 
 /// Generates mock sync state requests and responses
-fn create_mock_two_step_sync_state_request(
+fn create_mock_sync_state_request_for_account_and_notes(
     requests: &mut BTreeMap<SyncStateRequest, SyncStateResponse>,
     account_id: AccountId,
     recorded_notes: &[InputNote],
@@ -173,7 +173,7 @@ fn generate_sync_state_mock_requests() -> BTreeMap<SyncStateRequest, SyncStateRe
     // create sync state requests
     let mut requests = BTreeMap::new();
 
-    create_mock_two_step_sync_state_request(
+    create_mock_sync_state_request_for_account_and_notes(
         &mut requests,
         transaction_inputs.account().id(),
         &transaction_inputs.input_notes().clone().into_vec(),
@@ -274,7 +274,7 @@ pub fn insert_mock_data(client: &mut Client) -> (Vec<BlockHeader>, ChainMmr) {
         .insert_account(&account, account_seed, &AuthInfo::RpoFalcon512(key_pair))
         .unwrap();
 
-    create_mock_two_step_sync_state_request(
+    create_mock_sync_state_request_for_account_and_notes(
         &mut client.rpc_api.sync_state_requests,
         account.id(),
         &recorded_notes,
