@@ -1,5 +1,5 @@
 use crypto::{
-    merkle::{MmrPeaks, PartialMmr},
+    merkle::{MmrPeaks, PartialMmr, MerklePath, InOrderIndex},
     utils::Serializable,
 };
 use miden_node_proto::{mmr::MmrDelta, responses::AccountHashUpdate};
@@ -81,6 +81,7 @@ impl Store {
         nullifiers: Vec<Digest>,
         account_updates: Vec<AccountHashUpdate>,
         mmr_delta: Option<MmrDelta>,
+        block_path: Option<miden_node_proto::merkle::MerklePath>,
         committed_notes: Vec<(Digest, NoteInclusionProof)>,
     ) -> Result<(), StoreError> {
         // get current nodes on table
@@ -137,7 +138,6 @@ impl Store {
 
         // update chain mmr nodes on the table
         // get all elements from the chain mmr table
-        dbg!(&mmr_delta);
         if let Some(mmr_delta) = mmr_delta {
             // build partial mmr from the nodes - partial_mmr should be on memory as part of our store
 
@@ -156,10 +156,20 @@ impl Store {
             let new_authentication_nodes =
                 dbg!(partial_mmr.apply(mmr_delta)).map_err(StoreError::MmrError)?;
 
+            // I'm assuming block_path is some when mmr_delta is some
+            let block_path : MerklePath = block_path.unwrap().try_into().unwrap();
+            dbg!(block_path.depth());
+            dbg!(partial_mmr.forest());
+            dbg!(block_header.block_num());
+            dbg!(&block_path);
+            //dbg!(partial_mmr.add(block_header.block_num() as usize, block_header.hash(), &block_path)).map_err(StoreError::MmrError)?;
+
+            Store::insert_chain_mmr_nodes(&tx, merkle_path_to_chain_mmr_vec(block_header.block_num(), block_path))?;
             Store::insert_chain_mmr_nodes(&tx, new_authentication_nodes)?;
 
             Store::insert_block_header(&tx, block_header, partial_mmr.peaks())?;
         }
+
 
         // update tracked notes
         for (note_id, inclusion_proof) in committed_notes {
@@ -178,4 +188,17 @@ impl Store {
 
         Ok(())
     }
+}
+
+fn merkle_path_to_chain_mmr_vec(block_num: u32, block_path: MerklePath) -> Vec<(InOrderIndex, Digest)> {
+    let mut idx = InOrderIndex::from_leaf_pos(block_num as usize);
+    let mut indices : Vec<InOrderIndex> = Vec::new();
+
+    for _ in 0..block_path.nodes().len() {
+        idx = idx.sibling();
+        indices.push(idx);
+        idx = idx.parent();
+    }
+
+    indices.into_iter().zip(block_path.nodes().iter().cloned()).collect()
 }

@@ -108,6 +108,7 @@ impl Client {
                 new_nullifiers,
                 response.accounts,
                 response.mmr_delta,
+                response.block_path.unwrap().try_into().unwrap(),
                 committed_notes,
             )
             .map_err(ClientError::StoreError)?;

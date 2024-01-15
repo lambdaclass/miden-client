@@ -134,17 +134,23 @@ impl Store {
         let mut partial_mmr = PartialMmr::from_peaks(current_peaks);
         let chain_mmr_authentication_nodes = dbg!(self.get_chain_mmr_nodes()).unwrap();
 
-        for (block_num, node_hash) in blocks {
+        dbg!(partial_mmr.forest());
+        dbg!(block_num);
+
+        for (block_number, node_hash) in blocks {
             let mut nodes = Vec::new();
-            let mut idx = InOrderIndex::from_leaf_pos(*block_num as usize);
+            let mut idx = InOrderIndex::from_leaf_pos(*block_number as usize);
 
             while let Some(node) = chain_mmr_authentication_nodes.get(&idx.sibling()) {
                 nodes.push(*node);
                 idx = idx.parent();
             }
-            partial_mmr
-                .add(*block_num as usize, *node_hash, &MerklePath::new(nodes))
-                .map_err(StoreError::MmrError)?;
+            if nodes.len() > 0 && (*block_number as usize) < partial_mmr.forest() {
+                dbg!(block_number);
+                dbg!(partial_mmr
+                    .add(*block_number as usize, *node_hash, &MerklePath::new(nodes)))
+                    .map_err(StoreError::MmrError)?;
+            }
         }
 
         Ok(partial_mmr)

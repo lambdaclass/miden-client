@@ -3,12 +3,11 @@ use crate::client::{
     transactions::{PaymentTransactionData, TransactionTemplate},
     Client,
 };
-use crypto::{dsa::rpo_falcon512::KeyPair, Felt, FieldElement, StarkField};
+use crypto::{dsa::rpo_falcon512::KeyPair, Felt, FieldElement, StarkField, merkle::MerklePath};
 use miden_lib::transaction::TransactionKernel;
 use miden_node_proto::{
     account::AccountId as ProtoAccountId,
     block_header::BlockHeader as NodeBlockHeader,
-    merkle::MerklePath,
     note::NoteSyncRecord,
     requests::{SubmitProvenTransactionRequest, SyncStateRequest},
     responses::{NullifierUpdate, SubmitProvenTransactionResponse, SyncStateResponse},
@@ -92,6 +91,7 @@ fn create_mock_sync_state_request_for_account_and_notes(
     account_id: AccountId,
     recorded_notes: &[InputNote],
     mmr_delta: Option<Vec<MmrDelta>>,
+    blocks_paths: Option<Vec<MerklePath>>,
     tracked_block_headers: Option<Vec<BlockHeader>>,
 ) {
     // Clear existing mocked data
@@ -117,6 +117,7 @@ fn create_mock_sync_state_request_for_account_and_notes(
 
     let chain_tip = tracked_block_headers.last().map(|header| header.block_num()).unwrap_or(10);
     let mut deltas_iter = mmr_delta.unwrap_or(Vec::new()).into_iter();
+    let mut paths_iter = blocks_paths.unwrap_or(Vec::new()).into_iter();
 
     for (block_order, block_header) in tracked_block_headers.iter().enumerate() {
         let request = SyncStateRequest {
@@ -129,8 +130,8 @@ fn create_mock_sync_state_request_for_account_and_notes(
         // create a state sync response
         let response = SyncStateResponse {
             chain_tip,
-            mmr_delta: deltas_iter.next().map(|delta| miden_node_proto::mmr::MmrDelta::from(delta)), // TODO: receive the deltas as well
-            block_path: None,
+            mmr_delta: deltas_iter.next().map(|delta| miden_node_proto::mmr::MmrDelta::from(delta)),
+            block_path: paths_iter.next().map(|path| miden_node_proto::merkle::MerklePath::from(path)),
             block_header: Some(NodeBlockHeader::from(*block_header)),
             accounts: vec![],
             notes: vec![NoteSyncRecord {
@@ -139,7 +140,7 @@ fn create_mock_sync_state_request_for_account_and_notes(
                 sender: account.id().into(),
                 tag: 0u64,
                 num_assets: 2,
-                merkle_path: Some(MerklePath::default()),
+                merkle_path: Some(miden_node_proto::merkle::MerklePath::default()),
             }],
             nullifiers: vec![NullifierUpdate {
                 nullifier: Some(
@@ -179,12 +180,13 @@ fn generate_sync_state_mock_requests() -> BTreeMap<SyncStateRequest, SyncStateRe
         &transaction_inputs.input_notes().clone().into_vec(),
         None,
         None,
+        None,
     );
 
     requests
 }
 
-fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNote>, Vec<BlockHeader>, Vec<MmrDelta>) {
+fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNote>, Vec<BlockHeader>, Vec<MmrDelta>, Vec<MerklePath>) {
     let mut note_trees = Vec::new();
 
     // TODO: Consider how to better represent note authentication data.
@@ -201,6 +203,7 @@ fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNo
 
     let mut note_tree_iter = note_trees.iter();
     let mut mmr_deltas = Vec::new();
+    let mut blocks_paths = Vec::new();
 
     // create a dummy chain of block headers
     let block_chain = vec![
@@ -217,7 +220,10 @@ fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNo
         if block_num == 2 || block_num == 4 {
             mmr_deltas.push(mmr.get_delta(0, mmr.forest()).unwrap());
         }
-        mmr.add(block_header.hash())
+        mmr.add(block_header.hash());
+        if block_num == 2 || block_num == 4 {
+            blocks_paths.push(mmr.open(block_num, mmr.forest()).unwrap().merkle_path);
+        }
     }
 
     // set origin for consumed notes using chain and block data
@@ -241,7 +247,7 @@ fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNo
         })
         .collect::<Vec<_>>();
 
-    (mmr, recorded_notes, vec![block_chain[2], block_chain[4]], mmr_deltas)
+    (mmr, recorded_notes, vec![block_chain[2], block_chain[4]], mmr_deltas, blocks_paths)
 }
 
 /// inserts mock note and account data into the client, returns the latest block header and the
@@ -254,7 +260,7 @@ pub fn insert_mock_data(client: &mut Client) -> (Vec<BlockHeader>, ChainMmr) {
     let account = mock_account(Some(u64::from(account_id)), Felt::ONE, None, &assembler);
     let (input_notes, created_notes) = mock_notes(&assembler, &AssetPreservationStatus::Preserved);
 
-    let (mmr, recorded_notes, tracked_block_headers, mmr_deltas) = mock_full_chain_mmr_and_notes(input_notes);
+    let (mmr, recorded_notes, tracked_block_headers, mmr_deltas, blocks_paths) = mock_full_chain_mmr_and_notes(input_notes);
 
     // insert notes into database
     for note in recorded_notes.clone() {
@@ -279,6 +285,7 @@ pub fn insert_mock_data(client: &mut Client) -> (Vec<BlockHeader>, ChainMmr) {
         account.id(),
         &recorded_notes,
         Some(mmr_deltas),
+        Some(blocks_paths),
         Some(tracked_block_headers.clone()),
     );
 
