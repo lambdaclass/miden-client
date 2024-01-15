@@ -91,7 +91,7 @@ fn create_mock_two_step_sync_state_request(
     requests: &mut BTreeMap<SyncStateRequest, SyncStateResponse>,
     account_id: AccountId,
     recorded_notes: &[InputNote],
-    mmr_delta: Option<MmrDelta>,
+    mmr_delta: Option<Vec<MmrDelta>>,
     tracked_block_headers: Option<Vec<BlockHeader>>,
 ) {
     // Clear existing mocked data
@@ -116,10 +116,9 @@ fn create_mock_two_step_sync_state_request(
     ]);
 
     let chain_tip = tracked_block_headers.last().map(|header| header.block_num()).unwrap_or(10);
+    let mut deltas_iter = mmr_delta.unwrap_or(Vec::new()).into_iter();
 
-    let mmr_delta = mmr_delta.map(|d| miden_node_proto::mmr::MmrDelta::from(d));
-    let mmr_delta_iter = std::iter::repeat(mmr_delta);
-    for (block_order, (block_header, delta)) in tracked_block_headers.iter().zip(mmr_delta_iter).enumerate() {
+    for (block_order, block_header) in tracked_block_headers.iter().enumerate() {
         let request = SyncStateRequest {
             block_num: if block_order == 0 { 0 } else { tracked_block_headers[block_order - 1].block_num() },
             account_ids: accounts.clone(),
@@ -130,7 +129,7 @@ fn create_mock_two_step_sync_state_request(
         // create a state sync response
         let response = SyncStateResponse {
             chain_tip,
-            mmr_delta: if block_order == 0 { None } else { delta }, // TODO: receive the deltas as well
+            mmr_delta: deltas_iter.next().map(|delta| miden_node_proto::mmr::MmrDelta::from(delta)), // TODO: receive the deltas as well
             block_path: None,
             block_header: Some(NodeBlockHeader::from(*block_header)),
             accounts: vec![],
@@ -185,7 +184,7 @@ fn generate_sync_state_mock_requests() -> BTreeMap<SyncStateRequest, SyncStateRe
     requests
 }
 
-fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNote>, Vec<BlockHeader>) {
+fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNote>, Vec<BlockHeader>, Vec<MmrDelta>) {
     let mut note_trees = Vec::new();
 
     // TODO: Consider how to better represent note authentication data.
@@ -201,6 +200,7 @@ fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNo
     }
 
     let mut note_tree_iter = note_trees.iter();
+    let mut mmr_deltas = Vec::new();
 
     // create a dummy chain of block headers
     let block_chain = vec![
@@ -213,7 +213,10 @@ fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNo
 
     // instantiate and populate MMR
     let mut mmr = Mmr::default();
-    for block_header in block_chain.iter() {
+    for (block_num, block_header) in block_chain.iter().enumerate() {
+        if block_num == 2 || block_num == 4 {
+            mmr_deltas.push(mmr.get_delta(0, mmr.forest()).unwrap());
+        }
         mmr.add(block_header.hash())
     }
 
@@ -238,7 +241,7 @@ fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNo
         })
         .collect::<Vec<_>>();
 
-    (mmr, recorded_notes, vec![block_chain[2], block_chain[4]])
+    (mmr, recorded_notes, vec![block_chain[2], block_chain[4]], mmr_deltas)
 }
 
 /// inserts mock note and account data into the client, returns the latest block header and the
@@ -251,7 +254,7 @@ pub fn insert_mock_data(client: &mut Client) -> (Vec<BlockHeader>, ChainMmr) {
     let account = mock_account(Some(u64::from(account_id)), Felt::ONE, None, &assembler);
     let (input_notes, created_notes) = mock_notes(&assembler, &AssetPreservationStatus::Preserved);
 
-    let (mmr, recorded_notes, tracked_block_headers) = mock_full_chain_mmr_and_notes(input_notes);
+    let (mmr, recorded_notes, tracked_block_headers, mmr_deltas) = mock_full_chain_mmr_and_notes(input_notes);
 
     // insert notes into database
     for note in recorded_notes.clone() {
@@ -271,14 +274,11 @@ pub fn insert_mock_data(client: &mut Client) -> (Vec<BlockHeader>, ChainMmr) {
         .insert_account(&account, account_seed, &AuthInfo::RpoFalcon512(key_pair))
         .unwrap();
 
-    // Create the Mmr delta update
-    let mmr_delta = mmr.get_delta(0, mmr.forest());
-
     create_mock_two_step_sync_state_request(
         &mut client.rpc_api.sync_state_requests,
         account.id(),
         &recorded_notes,
-        mmr_delta.ok(),
+        Some(mmr_deltas),
         Some(tracked_block_headers.clone()),
     );
 

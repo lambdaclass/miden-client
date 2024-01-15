@@ -129,10 +129,10 @@ impl Store {
         block_num: u32,
         blocks: &[(u32, objects::Digest)],
     ) -> Result<PartialMmr, StoreError> {
-        let current_peaks = self.get_chain_mmr_peaks_by_block_num(block_num).unwrap();
+        let current_peaks = dbg!(self.get_chain_mmr_peaks_by_block_num(block_num)).unwrap();
 
         let mut partial_mmr = PartialMmr::from_peaks(current_peaks);
-        let chain_mmr_authentication_nodes = self.get_chain_mmr_nodes().unwrap();
+        let chain_mmr_authentication_nodes = dbg!(self.get_chain_mmr_nodes()).unwrap();
 
         for (block_num, node_hash) in blocks {
             let mut nodes = Vec::new();

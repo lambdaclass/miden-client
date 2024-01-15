@@ -137,6 +137,7 @@ impl Store {
 
         // update chain mmr nodes on the table
         // get all elements from the chain mmr table
+        dbg!(&mmr_delta);
         if let Some(mmr_delta) = mmr_delta {
             // build partial mmr from the nodes - partial_mmr should be on memory as part of our store
 
@@ -146,18 +147,18 @@ impl Store {
                     .map_err(StoreError::MmrError)?
                     .into()
             } else {
-                dbg!(PartialMmr::from_peaks(current_peaks))
+                PartialMmr::from_peaks(current_peaks)
             };
 
             // apply the delta
             let mmr_delta: crypto::merkle::MmrDelta = mmr_delta.try_into().unwrap();
 
             let new_authentication_nodes =
-                partial_mmr.apply(mmr_delta).map_err(StoreError::MmrError)?;
+                dbg!(partial_mmr.apply(mmr_delta)).map_err(StoreError::MmrError)?;
 
             Store::insert_chain_mmr_nodes(&tx, new_authentication_nodes)?;
 
-            Store::insert_block_header(&tx, block_header, dbg!(partial_mmr.peaks()))?;
+            Store::insert_block_header(&tx, block_header, partial_mmr.peaks())?;
         }
 
         // update tracked notes
