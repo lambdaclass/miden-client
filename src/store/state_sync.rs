@@ -88,6 +88,28 @@ impl Store {
         // we need to do this here because creating a sql tx borrows a mut reference
         let current_peaks = self.get_chain_mmr_peaks_by_block_num(current_block_num)?;
 
+        let mut headers = Vec::new();
+        for block_number in 0..=current_block_num {
+            if let Ok(block_header) = self.get_block_header_by_num(block_number) {
+                headers.push(block_header)
+            }
+        }
+        let current_tracked_nodes : Vec<(u32, Digest)> = headers
+            .into_iter()
+            .map(|block_header| (block_header.block_num(), block_header.hash()))
+            .collect();
+
+        dbg!(&current_tracked_nodes);
+
+        let mut partial_mmr: PartialMmr = if current_block_num == 0 {
+            // first block we receive so we are good to create a blank partial mmr for this
+            MmrPeaks::new(0, vec![])
+                .map_err(StoreError::MmrError)?
+                .into()
+        } else {
+            dbg!(self.get_partial_mmr_for_blocks(current_block_num, &current_tracked_nodes).unwrap())
+        };
+
         let tx = self
             .db
             .transaction()
@@ -141,15 +163,6 @@ impl Store {
         if let Some(mmr_delta) = mmr_delta {
             // build partial mmr from the nodes - partial_mmr should be on memory as part of our store
 
-            let mut partial_mmr: PartialMmr = if current_block_num == 0 {
-                // first block we receive so we are good to create a blank partial mmr for this
-                MmrPeaks::new(0, vec![])
-                    .map_err(StoreError::MmrError)?
-                    .into()
-            } else {
-                PartialMmr::from_peaks(current_peaks)
-            };
-
             // apply the delta
             let mmr_delta: crypto::merkle::MmrDelta = mmr_delta.try_into().unwrap();
 
@@ -167,7 +180,7 @@ impl Store {
             Store::insert_chain_mmr_nodes(&tx, merkle_path_to_chain_mmr_vec(block_header.block_num(), block_path))?;
             Store::insert_chain_mmr_nodes(&tx, new_authentication_nodes)?;
 
-            Store::insert_block_header(&tx, block_header, partial_mmr.peaks())?;
+            Store::insert_block_header(&tx, block_header, dbg!(partial_mmr.peaks()))?;
         }
 
 

@@ -101,7 +101,7 @@ impl Client {
         let committed_notes =
             self.get_newly_committed_note_info(&response.notes, &incoming_block_header)?;
 
-        self.store
+        dbg!(self.store
             .apply_state_sync(
                 current_block_num,
                 incoming_block_header,
@@ -110,7 +110,7 @@ impl Client {
                 response.mmr_delta,
                 response.block_path.unwrap().try_into().unwrap(),
                 committed_notes,
-            )
+            ))
             .map_err(ClientError::StoreError)?;
 
         if response.chain_tip == incoming_block_header.block_num() {

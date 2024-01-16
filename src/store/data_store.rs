@@ -58,7 +58,7 @@ impl DataStore for SqliteDataStore {
         // TODO:
         //  - To build the return (partial) ChainMmr: From the block numbers in each note.origin(), get the list of block headers
         //    and construct the partial Mmr
-        let notes_blocks: Result<Vec<(u32, objects::Digest)>, DataStoreError> = list_of_notes
+        let notes_blocks: Result<Vec<_>, DataStoreError> = list_of_notes
             .iter()
             .map(|input_note| {
                 let note_block_num = input_note.proof().origin().block_num;
@@ -67,14 +67,16 @@ impl DataStore for SqliteDataStore {
                     .get_block_header_by_num(note_block_num)
                     .map_err(|_| DataStoreError::AccountNotFound(account_id))?;
 
-                Ok((block_header.block_num(), block_header.hash()))
+                Ok(block_header)
             })
             .collect();
         let notes_blocks = notes_blocks?;
 
+
+        let notes_blocks_vec : Vec<_> = notes_blocks.iter().cloned().map(|head| (head.block_num(), head.hash())).collect();
         let partial_mmr = self
             .store
-            .get_partial_mmr_for_blocks(block_num, &notes_blocks)
+            .get_partial_mmr_for_blocks(block_num, &notes_blocks_vec)
             .map_err(|_err| DataStoreError::AccountNotFound(account_id))?;
         let notes_blocks = notes_blocks.into_iter().collect();
 

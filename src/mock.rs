@@ -218,10 +218,11 @@ fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNo
     let mut mmr = Mmr::default();
     for (block_num, block_header) in block_chain.iter().enumerate() {
         if block_num == 2 || block_num == 4 {
-            mmr_deltas.push(mmr.get_delta(0, mmr.forest()).unwrap());
+            // mmr_deltas.push(mmr.get_delta(0, mmr.forest()).unwrap());
         }
         mmr.add(block_header.hash());
         if block_num == 2 || block_num == 4 {
+            mmr_deltas.push(mmr.get_delta(0, mmr.forest()).unwrap());
             blocks_paths.push(mmr.open(block_num, mmr.forest()).unwrap().merkle_path);
         }
     }
@@ -252,7 +253,7 @@ fn mock_full_chain_mmr_and_notes(consumed_notes: Vec<Note>) -> (Mmr, Vec<InputNo
 
 /// inserts mock note and account data into the client, returns the latest block header and the
 /// chain mmr
-pub fn insert_mock_data(client: &mut Client) -> (Vec<BlockHeader>, ChainMmr) {
+pub fn insert_mock_data(client: &mut Client) -> Vec<BlockHeader> {
     // mock notes
     let assembler = TransactionKernel::assembler();
     let (account_id, account_seed) =
@@ -260,7 +261,7 @@ pub fn insert_mock_data(client: &mut Client) -> (Vec<BlockHeader>, ChainMmr) {
     let account = mock_account(Some(u64::from(account_id)), Felt::ONE, None, &assembler);
     let (input_notes, created_notes) = mock_notes(&assembler, &AssetPreservationStatus::Preserved);
 
-    let (mmr, recorded_notes, tracked_block_headers, mmr_deltas, blocks_paths) = mock_full_chain_mmr_and_notes(input_notes);
+    let (_mmr, recorded_notes, tracked_block_headers, mmr_deltas, blocks_paths) = mock_full_chain_mmr_and_notes(input_notes);
 
     // insert notes into database
     for note in recorded_notes.clone() {
@@ -289,7 +290,7 @@ pub fn insert_mock_data(client: &mut Client) -> (Vec<BlockHeader>, ChainMmr) {
         Some(tracked_block_headers.clone()),
     );
 
-    (tracked_block_headers, mmr_to_chain_mmr(&mmr))
+    tracked_block_headers
 }
 
 pub async fn create_mock_transaction(client: &mut Client) {
@@ -399,13 +400,14 @@ impl Client {
 pub fn mmr_to_chain_mmr(mmr: &Mmr) -> ChainMmr {
     let num_leaves = mmr.forest();
     let mut partial_mmr = PartialMmr::from_peaks(mmr.peaks(mmr.forest()).unwrap());
-    let mut headers = BTreeMap::new();
+    let mut headers = Vec::new();
 
     for i in 0..num_leaves {
         let node = mmr.get(i).unwrap();
         let path = mmr.open(i, mmr.forest()).unwrap().merkle_path;
         partial_mmr.add(i, node, &path).unwrap();
-        headers.insert(i as u32, node);
+        let block_mock = mock_block_header(i as u32, None, None, &Vec::new());
+        headers.push(block_mock);
     }
 
     ChainMmr::new(partial_mmr, headers).unwrap()

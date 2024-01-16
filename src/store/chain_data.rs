@@ -114,7 +114,7 @@ impl Store {
             .map_err(StoreError::QueryError)?;
 
         if let Some(mmr_peaks) = mmr_peaks {
-            return parse_mmr_peaks(block_num, mmr_peaks);
+            return parse_mmr_peaks(block_num + 1, mmr_peaks);
         }
 
         MmrPeaks::new(0, vec![]).map_err(StoreError::MmrError)
@@ -145,12 +145,10 @@ impl Store {
                 nodes.push(*node);
                 idx = idx.parent();
             }
-            if nodes.len() > 0 && (*block_number as usize) < partial_mmr.forest() {
-                dbg!(block_number);
-                dbg!(partial_mmr
-                    .add(*block_number as usize, *node_hash, &MerklePath::new(nodes)))
-                    .map_err(StoreError::MmrError)?;
-            }
+            dbg!(block_number);
+            dbg!(partial_mmr
+                .add(*block_number as usize, *node_hash, &MerklePath::new(nodes)))
+                .map_err(StoreError::MmrError)?;
         }
 
         Ok(partial_mmr)
@@ -163,6 +161,9 @@ impl Store {
 fn parse_mmr_peaks(forest: u32, peaks_nodes: String) -> Result<MmrPeaks, StoreError> {
     let mmr_peaks_nodes: Vec<Digest> =
         serde_json::from_str(&peaks_nodes).map_err(StoreError::JsonDataDeserializationError)?;
+
+    dbg!(&mmr_peaks_nodes);
+    dbg!(forest);
 
     MmrPeaks::new(forest as usize, mmr_peaks_nodes).map_err(StoreError::MmrError)
 }
