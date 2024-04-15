@@ -6,7 +6,7 @@ use miden_objects::{
     notes::{NoteAssets, NoteId, NoteInclusionProof, NoteMetadata, NoteScript, Nullifier},
     Digest,
 };
-use rusqlite::{named_params, params, Transaction};
+use rusqlite::{named_params, params, params_from_iter, Params, ParamsFromIter, Transaction};
 
 use super::SqliteStore;
 use crate::{
@@ -96,6 +96,7 @@ impl NoteFilter {
             NoteFilter::Committed => format!("{base} WHERE status = 'Committed'"),
             NoteFilter::Consumed => format!("{base} WHERE status = 'Consumed'"),
             NoteFilter::Pending => format!("{base} WHERE status = 'Pending'"),
+            NoteFilter::Unique(_) => format!("{base} WHERE note.note_id = ?"),
         }
     }
 }
@@ -108,9 +109,13 @@ impl SqliteStore {
         &self,
         filter: NoteFilter,
     ) -> Result<Vec<InputNoteRecord>, StoreError> {
+        let mut params = Vec::new();
+        if let NoteFilter::Unique(note_id) = filter{
+            params.push(note_id.inner().to_string());
+        }
         self.db
             .prepare(&filter.to_query(NoteTable::InputNotes))?
-            .query_map([], parse_input_note_columns)
+            .query_map(params_from_iter(params), parse_input_note_columns)
             .expect("no binding parameters used in query")
             .map(|result| Ok(result?).and_then(parse_input_note))
             .collect::<Result<Vec<InputNoteRecord>, _>>()
@@ -121,9 +126,13 @@ impl SqliteStore {
         &self,
         filter: NoteFilter,
     ) -> Result<Vec<OutputNoteRecord>, StoreError> {
+        let mut params = Vec::new();
+        if let NoteFilter::Unique(note_id) = filter{
+            params.push(note_id.inner().to_string());
+        }
         self.db
             .prepare(&filter.to_query(NoteTable::OutputNotes))?
-            .query_map([], parse_output_note_columns)
+            .query_map(params_from_iter(params), parse_output_note_columns)
             .expect("no binding parameters used in query")
             .map(|result| Ok(result?).and_then(parse_output_note))
             .collect::<Result<Vec<OutputNoteRecord>, _>>()
