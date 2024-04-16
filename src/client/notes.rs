@@ -2,7 +2,7 @@ use miden_objects::{crypto::rand::FeltRng, notes::NoteId};
 
 use super::{rpc::NodeRpcClient, Client};
 use crate::{
-    errors::ClientError,
+    errors::{ClientError, StoreError},
     store::{InputNoteRecord, NoteFilter, Store},
 };
 
@@ -17,7 +17,11 @@ impl<N: NodeRpcClient, R: FeltRng, S: Store> Client<N, R, S> {
 
     /// Returns the input note with the specified hash.
     pub fn get_input_note(&self, note_id: NoteId) -> Result<InputNoteRecord, ClientError> {
-        self.store.get_input_note(note_id).map_err(|err| err.into())
+        self.store
+            .get_input_notes(NoteFilter::Unique(note_id))
+            .map_err(<StoreError as Into<ClientError>>::into)?
+            .pop()
+            .ok_or(ClientError::StoreError(StoreError::NoteNotFound(note_id)))
     }
 
     // INPUT NOTE CREATION
