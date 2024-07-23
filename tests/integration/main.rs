@@ -634,11 +634,8 @@ async fn test_multiple_transactions_can_be_committed_in_different_blocks_without
 
         println!("Sending transaction to node");
         let note_id = tx_request.expected_output_notes()[0].id();
-        let proven_transaction = client
-            .prove_transaction(transaction_execution_result.executed_transaction().clone())
-            .unwrap();
         client
-            .submit_transaction(transaction_execution_result, proven_transaction)
+            .submit_transaction(transaction_execution_result)
             .await
             .unwrap();
 
@@ -663,17 +660,13 @@ async fn test_multiple_transactions_can_be_committed_in_different_blocks_without
         let transaction_id = transaction_execution_result.executed_transaction().id();
 
         println!("Sending transaction to node");
-        let proven_transaction = client
-            .prove_transaction(transaction_execution_result.executed_transaction().clone())
-            .unwrap();
-
         // May need a few attempts until it gets included
         let note_id = tx_request.expected_output_notes()[0].id();
         while client.rpc_api().get_notes_by_id(&[first_note_id]).await.unwrap().is_empty() {
             std::thread::sleep(std::time::Duration::from_secs(3));
         }
         client
-            .submit_transaction(transaction_execution_result, proven_transaction)
+            .submit_transaction(transaction_execution_result)
             .await
             .unwrap();
 
@@ -698,17 +691,13 @@ async fn test_multiple_transactions_can_be_committed_in_different_blocks_without
         let transaction_id = transaction_execution_result.executed_transaction().id();
 
         println!("Sending transaction to node");
-        let proven_transaction = client
-            .prove_transaction(transaction_execution_result.executed_transaction().clone())
-            .unwrap();
-
         // May need a few attempts until it gets included
         let note_id = tx_request.expected_output_notes()[0].id();
         while client.rpc_api().get_notes_by_id(&[second_note_id]).await.unwrap().is_empty() {
             std::thread::sleep(std::time::Duration::from_secs(3));
         }
         client
-            .submit_transaction(transaction_execution_result, proven_transaction)
+            .submit_transaction(transaction_execution_result)
             .await
             .unwrap();
 
