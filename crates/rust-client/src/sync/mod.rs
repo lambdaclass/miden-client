@@ -411,7 +411,7 @@ impl<N: NodeRpcClient, R: FeltRng, S: Store, A: TransactionAuthenticator> Client
                     committed_note.merkle_path().clone(),
                 )?;
 
-                let note_inputs = NoteInputs::new(note_record.details().inputs().clone())?;
+                let note_inputs = NoteInputs::new(note_record.details().inputs().clone().into())?;
                 let note_recipient = NoteRecipient::new(
                     note_record.details().serial_num(),
                     note_record.details().script().clone(),

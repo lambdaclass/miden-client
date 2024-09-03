@@ -133,8 +133,6 @@ impl<N: NodeRpcClient, R: FeltRng, S: Store, A: TransactionAuthenticator> Client
         note: Note,
         inclusion_proof: NoteInclusionProof,
     ) -> Result<InputNoteRecord, ClientError> {
-        let details = note.clone().into();
-
         let status = if let Some(block_height) =
             self.rpc_api().get_nullifier_commit_height(&note.nullifier()).await?
         {
@@ -156,11 +154,10 @@ impl<N: NodeRpcClient, R: FeltRng, S: Store, A: TransactionAuthenticator> Client
         Ok(InputNoteRecord::new(
             note.id(),
             note.recipient().digest(),
-            note.assets().clone(),
             status,
             Some(*note.metadata()),
             Some(inclusion_proof),
-            details,
+            note.into(),
             false,
             None,
         ))
@@ -174,8 +171,6 @@ impl<N: NodeRpcClient, R: FeltRng, S: Store, A: TransactionAuthenticator> Client
         after_block_num: u32,
         tag: Option<NoteTag>,
     ) -> Result<InputNoteRecord, ClientError> {
-        let record_details = details.clone().into();
-
         match tag {
             Some(tag) => {
                 let ignored = !maybe_await!(self.get_tracked_note_tags())?.contains(&tag);
@@ -196,14 +191,13 @@ impl<N: NodeRpcClient, R: FeltRng, S: Store, A: TransactionAuthenticator> Client
                     Ok(InputNoteRecord::new(
                         details.id(),
                         details.recipient().digest(),
-                        details.assets().clone(),
                         NoteStatus::Expected {
                             created_at: None,
                             block_height: Some(after_block_num),
                         },
                         None,
                         None,
-                        record_details,
+                        details,
                         ignored,
                         Some(tag),
                     ))
@@ -212,14 +206,13 @@ impl<N: NodeRpcClient, R: FeltRng, S: Store, A: TransactionAuthenticator> Client
             None => Ok(InputNoteRecord::new(
                 details.id(),
                 details.recipient().digest(),
-                details.assets().clone(),
                 NoteStatus::Expected {
                     created_at: None,
                     block_height: Some(after_block_num),
                 },
                 None,
                 None,
-                record_details,
+                details,
                 true,
                 None,
             )),

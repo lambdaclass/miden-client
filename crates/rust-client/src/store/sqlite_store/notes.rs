@@ -9,7 +9,10 @@ use chrono::Utc;
 use miden_objects::{
     accounts::AccountId,
     crypto::utils::{Deserializable, Serializable},
-    notes::{NoteAssets, NoteId, NoteInclusionProof, NoteMetadata, NoteScript, NoteTag, Nullifier},
+    notes::{
+        NoteAssets, NoteDetails, NoteId, NoteInclusionProof, NoteInputs, NoteMetadata,
+        NoteRecipient, NoteScript, NoteTag, Nullifier,
+    },
     transaction::TransactionId,
     Digest,
 };
@@ -522,11 +525,14 @@ fn parse_input_note(
     let note_script = NoteScript::read_from_bytes(&serialized_note_script)?;
     let note_details: NoteRecordDetails =
         serde_json::from_str(&note_details).map_err(StoreError::JsonDataDeserializationError)?;
-    let note_details = NoteRecordDetails::new(
-        note_details.nullifier().to_string(),
-        note_script,
-        note_details.inputs().clone(),
-        note_details.serial_num(),
+    let note_assets = NoteAssets::read_from_bytes(&note_assets)?;
+    let note_details = NoteDetails::new(
+        note_assets,
+        NoteRecipient::new(
+            note_details.serial_num(),
+            note_script,
+            note_details.inputs().into_iter().map(NoteInputs::from).collect(),
+        ),
     );
 
     let note_metadata: Option<NoteMetadata> = if let Some(metadata_as_json_str) = note_metadata {
@@ -537,8 +543,6 @@ fn parse_input_note(
     } else {
         None
     };
-
-    let note_assets = NoteAssets::read_from_bytes(&note_assets)?;
 
     let inclusion_proof = match note_inclusion_proof {
         Some(note_inclusion_proof) => {
@@ -590,7 +594,6 @@ fn parse_input_note(
     Ok(InputNoteRecord::new(
         id,
         recipient,
-        note_assets,
         status,
         note_metadata,
         inclusion_proof,
@@ -636,7 +639,7 @@ pub(crate) fn serialize_input_note(
     let details =
         serde_json::to_string(&note.details()).map_err(StoreError::InputSerializationError)?;
 
-    let note_script_hash = note.details().script_hash().to_hex();
+    let note_script_hash = note.details().script().hash();
     let serialized_note_script = note.details().script().to_bytes();
 
     let ignored = note.ignored();
@@ -665,7 +668,7 @@ pub(crate) fn serialize_input_note(
         status,
         metadata,
         details,
-        note_script_hash,
+        note_script_hash.to_hex(),
         serialized_note_script,
         inclusion_proof,
         expected_height,
@@ -727,14 +730,14 @@ fn parse_output_note(
         nullifier_height,
     ) = serialized_output_note_parts;
 
-    let note_details: Option<NoteRecordDetails> = if let Some(details_as_json_str) = note_details {
+    let note_details: Option<NoteDetails> = if let Some(details_as_json_str) = note_details {
         // Merge the info that comes from the input notes table and the notes script table
         let serialized_note_script = serialized_note_script
             .expect("Has note details so it should have the serialized script");
         let note_script = NoteScript::read_from_bytes(&serialized_note_script)?;
         let note_details: NoteRecordDetails = serde_json::from_str(&details_as_json_str)
             .map_err(StoreError::JsonDataDeserializationError)?;
-        let note_details = NoteRecordDetails::new(
+        let note_details = NoteDetails::new(
             note_details.nullifier().to_string(),
             note_script,
             note_details.inputs().clone(),
@@ -802,7 +805,6 @@ fn parse_output_note(
     Ok(OutputNoteRecord::new(
         id,
         recipient,
-        note_assets,
         status,
         note_metadata,
         inclusion_proof,
@@ -848,7 +850,7 @@ pub(crate) fn serialize_output_note(
     } else {
         None
     };
-    let note_script_hash = note.details().map(|details| details.script_hash().to_hex());
+    let note_script_hash = note.details().map(|details| details.script().hash().to_hex());
     let serialized_note_script = note.details().map(|details| details.script().to_bytes());
     let expected_height = match note.status() {
         NoteStatus::Expected { block_height, .. } => block_height,

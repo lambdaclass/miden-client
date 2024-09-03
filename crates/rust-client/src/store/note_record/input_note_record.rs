@@ -32,10 +32,9 @@ use crate::ClientError;
 /// `metadata` and `inclusion_proof` fields if possible)
 #[derive(Clone, Debug, PartialEq)]
 pub struct InputNoteRecord {
-    assets: NoteAssets,
-    // TODO: see if we can replace `NoteRecordDetails` with `NoteDetails` after miden-base v0.3
-    // gets released
-    details: NoteRecordDetails,
+    details: NoteDetails,
+    // assets: NoteAssets,
+    // Assets are now part of the note details
     id: NoteId,
     inclusion_proof: Option<NoteInclusionProof>,
     metadata: Option<NoteMetadata>,
@@ -50,18 +49,16 @@ impl InputNoteRecord {
     pub fn new(
         id: NoteId,
         recipient: Digest,
-        assets: NoteAssets,
         status: NoteStatus,
         metadata: Option<NoteMetadata>,
         inclusion_proof: Option<NoteInclusionProof>,
-        details: NoteRecordDetails,
+        details: NoteDetails,
         ignored: bool,
         imported_tag: Option<NoteTag>,
     ) -> InputNoteRecord {
         InputNoteRecord {
             id,
             recipient,
-            assets,
             status,
             metadata,
             inclusion_proof,
@@ -80,7 +77,7 @@ impl InputNoteRecord {
     }
 
     pub fn assets(&self) -> &NoteAssets {
-        &self.assets
+        &self.details().assets()
     }
 
     pub fn status(&self) -> NoteStatus {
@@ -92,14 +89,14 @@ impl InputNoteRecord {
     }
 
     pub fn nullifier(&self) -> &str {
-        &self.details.nullifier
+        self.details().nullifier().to_string().as_str()
     }
 
     pub fn inclusion_proof(&self) -> Option<&NoteInclusionProof> {
         self.inclusion_proof.as_ref()
     }
 
-    pub fn details(&self) -> &NoteRecordDetails {
+    pub fn details(&self) -> &NoteDetails {
         &self.details
     }
 
@@ -131,18 +128,11 @@ impl From<&NoteDetails> for InputNoteRecord {
     fn from(note_details: &NoteDetails) -> Self {
         InputNoteRecord {
             id: note_details.id(),
-            assets: note_details.assets().clone(),
             recipient: note_details.recipient().digest(),
             metadata: None,
             inclusion_proof: None,
             status: NoteStatus::Expected { created_at: None, block_height: None },
-            details: NoteRecordDetails {
-                nullifier: note_details.nullifier().to_string(),
-                script_hash: note_details.script().hash(),
-                script: note_details.script().clone(),
-                inputs: note_details.inputs().values().to_vec(),
-                serial_num: note_details.serial_num(),
-            },
+            details: note_details.clone(),
             ignored: false,
             imported_tag: None,
         }
@@ -151,14 +141,7 @@ impl From<&NoteDetails> for InputNoteRecord {
 
 impl From<InputNoteRecord> for NoteDetails {
     fn from(val: InputNoteRecord) -> Self {
-        NoteDetails::new(
-            val.assets,
-            NoteRecipient::new(
-                val.details.serial_num,
-                val.details.script,
-                NoteInputs::new(val.details.inputs).unwrap(),
-            ),
-        )
+        val.details().clone()
     }
 }
 
@@ -178,16 +161,14 @@ impl Deserializable for InputNoteRecord {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let id = NoteId::read_from(source)?;
         let recipient = Digest::read_from(source)?;
-        let assets = NoteAssets::read_from(source)?;
         let status = NoteStatus::read_from(source)?;
         let metadata = Option::<NoteMetadata>::read_from(source)?;
-        let details = NoteRecordDetails::read_from(source)?;
+        let details = NoteDetails::read_from(source)?;
         let inclusion_proof = Option::<NoteInclusionProof>::read_from(source)?;
 
         Ok(InputNoteRecord {
             id,
             recipient,
-            assets,
             status,
             metadata,
             inclusion_proof,
@@ -203,7 +184,6 @@ impl From<Note> for InputNoteRecord {
         InputNoteRecord {
             id: note.id(),
             recipient: note.recipient().digest(),
-            assets: note.assets().clone(),
             status: NoteStatus::Expected { created_at: None, block_height: None },
             metadata: Some(*note.metadata()),
             inclusion_proof: None,
@@ -227,7 +207,6 @@ impl From<InputNote> for InputNoteRecord {
         InputNoteRecord {
             id: recorded_note.note().id(),
             recipient: recorded_note.note().recipient().digest(),
-            assets: recorded_note.note().assets().clone(),
             status,
             metadata: Some(*recorded_note.note().metadata()),
             details: recorded_note.note().clone().into(),
@@ -245,17 +224,23 @@ impl TryInto<InputNote> for InputNoteRecord {
         match (self.inclusion_proof, self.metadata) {
             (Some(proof), Some(metadata)) => {
                 // TODO: Write functions to get these fields more easily
-                let note_inputs = NoteInputs::new(self.details.inputs)?;
-                let note_recipient =
-                    NoteRecipient::new(self.details.serial_num, self.details.script, note_inputs);
-                let note = Note::new(self.assets, metadata, note_recipient);
+                let note_inputs = NoteInputs::new(self.details().inputs().clone().into())?;
+                let note_recipient = NoteRecipient::new(
+                    self.details().serial_num(),
+                    self.details().script().clone(),
+                    note_inputs,
+                );
+                let note = Note::new(self.details().assets().clone(), metadata, note_recipient);
                 Ok(InputNote::authenticated(note, proof.clone()))
             },
             (None, Some(metadata)) => {
-                let note_inputs = NoteInputs::new(self.details.inputs)?;
-                let note_recipient =
-                    NoteRecipient::new(self.details.serial_num, self.details.script, note_inputs);
-                let note = Note::new(self.assets, metadata, note_recipient);
+                let note_inputs = NoteInputs::new(self.details().inputs().clone().into())?;
+                let note_recipient = NoteRecipient::new(
+                    self.details().serial_num(),
+                    self.details().script().clone(),
+                    note_inputs,
+                );
+                let note = Note::new(self.details().assets().clone(), metadata, note_recipient);
                 Ok(InputNote::unauthenticated(note))
             },
             (_, None) => Err(ClientError::NoteRecordError(
@@ -271,10 +256,13 @@ impl TryInto<Note> for InputNoteRecord {
     fn try_into(self) -> Result<Note, Self::Error> {
         match self.metadata {
             Some(metadata) => {
-                let note_inputs = NoteInputs::new(self.details.inputs)?;
-                let note_recipient =
-                    NoteRecipient::new(self.details.serial_num, self.details.script, note_inputs);
-                let note = Note::new(self.assets, metadata, note_recipient);
+                let note_inputs = NoteInputs::new(self.details().inputs().clone().into())?;
+                let note_recipient = NoteRecipient::new(
+                    self.details().serial_num(),
+                    self.details().script().clone(),
+                    note_inputs,
+                );
+                let note = Note::new(self.details().assets().clone(), metadata, note_recipient);
                 Ok(note)
             },
             None => Err(ClientError::NoteRecordError(
@@ -290,7 +278,6 @@ impl TryFrom<OutputNoteRecord> for InputNoteRecord {
     fn try_from(output_note: OutputNoteRecord) -> Result<Self, Self::Error> {
         match output_note.details() {
             Some(details) => Ok(InputNoteRecord {
-                assets: output_note.assets().clone(),
                 details: details.clone(),
                 id: output_note.id(),
                 inclusion_proof: output_note.inclusion_proof().cloned(),

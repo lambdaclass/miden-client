@@ -1,3 +1,7 @@
+use std::borrow::ToOwned;
+
+use alloc::vec::Vec;
+
 use alloc::string::ToString;
 
 use miden_objects::{
@@ -30,8 +34,8 @@ use crate::ClientError;
 /// is [None] it means that the note was consumed by an untracked account.
 #[derive(Clone, Debug, PartialEq)]
 pub struct OutputNoteRecord {
-    assets: NoteAssets,
-    details: Option<NoteRecordDetails>,
+    // assets: NoteAssets,
+    details: Option<NoteDetails>,
     id: NoteId,
     inclusion_proof: Option<NoteInclusionProof>,
     metadata: NoteMetadata,
@@ -43,16 +47,14 @@ impl OutputNoteRecord {
     pub fn new(
         id: NoteId,
         recipient: Digest,
-        assets: NoteAssets,
         status: NoteStatus,
         metadata: NoteMetadata,
         inclusion_proof: Option<NoteInclusionProof>,
-        details: Option<NoteRecordDetails>,
+        details: Option<NoteDetails>,
     ) -> OutputNoteRecord {
         OutputNoteRecord {
             id,
             recipient,
-            assets,
             status,
             metadata,
             inclusion_proof,
@@ -69,7 +71,10 @@ impl OutputNoteRecord {
     }
 
     pub fn assets(&self) -> &NoteAssets {
-        &self.assets
+        match &self.details() {
+            Some(details) => details.assets(),
+            None => &NoteAssets::new(Vec::new()).unwrap(),
+        }
     }
 
     pub fn status(&self) -> NoteStatus {
@@ -84,7 +89,7 @@ impl OutputNoteRecord {
         self.inclusion_proof.as_ref()
     }
 
-    pub fn details(&self) -> Option<&NoteRecordDetails> {
+    pub fn details(&self) -> Option<&NoteDetails> {
         self.details.as_ref()
     }
 }
@@ -98,7 +103,6 @@ impl From<Note> for OutputNoteRecord {
         OutputNoteRecord {
             id: note.id(),
             recipient: note.recipient().digest(),
-            assets: note.assets().clone(),
             status: NoteStatus::Expected { created_at: None, block_height: None },
             metadata: *note.metadata(),
             inclusion_proof: None,
@@ -112,7 +116,6 @@ impl From<PartialNote> for OutputNoteRecord {
         OutputNoteRecord::new(
             partial_note.id(),
             partial_note.recipient_digest(),
-            partial_note.assets().clone(),
             NoteStatus::Expected { created_at: None, block_height: None },
             *partial_note.metadata(),
             None,
@@ -145,7 +148,6 @@ impl TryFrom<InputNoteRecord> for OutputNoteRecord {
     fn try_from(input_note: InputNoteRecord) -> Result<Self, Self::Error> {
         match input_note.metadata() {
             Some(metadata) => Ok(OutputNoteRecord {
-                assets: input_note.assets().clone(),
                 details: Some(input_note.details().clone()),
                 id: input_note.id(),
                 inclusion_proof: input_note.inclusion_proof().cloned(),
@@ -163,19 +165,12 @@ impl TryFrom<InputNoteRecord> for OutputNoteRecord {
 impl TryFrom<OutputNoteRecord> for NoteDetails {
     type Error = ClientError;
     fn try_from(value: OutputNoteRecord) -> Result<Self, Self::Error> {
-        match value.details() {
-            Some(details) => Ok(NoteDetails::new(
-                value.assets.clone(),
-                NoteRecipient::new(
-                    details.serial_num,
-                    details.script.clone(),
-                    NoteInputs::new(details.inputs.clone())?,
-                ),
-            )),
-            None => Err(ClientError::NoteRecordError(
+        value
+            .details()
+            .ok_or(ClientError::NoteRecordError(
                 "Output Note Record contains no details".to_string(),
-            )),
-        }
+            ))
+            .cloned()
     }
 }
 
@@ -185,10 +180,10 @@ impl TryFrom<OutputNoteRecord> for Note {
     fn try_from(value: OutputNoteRecord) -> Result<Self, Self::Error> {
         match value.details {
             Some(details) => {
-                let note_inputs = NoteInputs::new(details.inputs)?;
+                let note_inputs = NoteInputs::new(details.inputs().clone().into())?;
                 let note_recipient =
-                    NoteRecipient::new(details.serial_num, details.script, note_inputs);
-                let note = Note::new(value.assets, value.metadata, note_recipient);
+                    NoteRecipient::new(details.serial_num(), details.script().clone(), note_inputs);
+                let note = Note::new(details.assets().clone(), value.metadata, note_recipient);
                 Ok(note)
             },
             None => Err(ClientError::NoteRecordError(
