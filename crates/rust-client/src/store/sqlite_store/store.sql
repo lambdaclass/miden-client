@@ -73,7 +73,6 @@ CREATE TABLE transaction_scripts (
 CREATE TABLE input_notes (
     note_id BLOB NOT NULL,                                  -- the note id
     recipient BLOB NOT NULL,                                -- the note recipient
-    assets BLOB NOT NULL,                                   -- the serialized NoteAssets, including vault hash and list of assets
     status TEXT CHECK( status IN (                          -- the status of the note - either expected, committed or consumed
         'Expected', 'Committed', 'Processing', 'Consumed'
         )),
@@ -90,17 +89,19 @@ CREATE TABLE input_notes (
     -- tag                                                    -- the note tag
 
     details JSON NOT NULL,                                  -- JSON consisting of the following fields:
-    -- nullifier                                              -- the nullifier of the note
-    -- script_hash                                                 -- the note's script hash
-    -- inputs                                                 -- the serialized NoteInputs, including inputs hash and list of inputs
-    -- serial_num                                             -- the note serial number
+    -- assets                                                 -- the serialized NoteAssets, including vault hash and list of assets
+    -- recipient                                              -- JSON consisting of the following fields:
+        -- script_hash                                          -- the note's script hash
+        -- inputs                                               -- the serialized NoteInputs, including inputs hash and list of inputs
+        -- serial_num                                           -- the note serial number
     consumer_transaction_id BLOB NULL,                      -- the transaction ID of the transaction that consumed the note
     created_at UNSIGNED BIG INT NOT NULL,                   -- timestamp of the note creation/import
     expected_height UNSIGNED BIG INT NULL,                  -- block height when the note is expected to be committed
-    submitted_at UNSIGNED BIG INT NULL,                      -- timestamp of the note submission to node
+    submitted_at UNSIGNED BIG INT NULL,                     -- timestamp of the note submission to node
     nullifier_height UNSIGNED BIG INT NULL,                 -- block height when the nullifier arrived
     ignored BOOLEAN NOT NULL DEFAULT 0,                     -- whether the note is ignored in sync
     imported_tag UNSIGNED INT NULL,                         -- imported tag for the note
+    nullifier UNSIGNED INT NULL,                                 -- nullifier for the note
 
     FOREIGN KEY (consumer_transaction_id) REFERENCES transactions(id)
     PRIMARY KEY (note_id)

@@ -1,4 +1,4 @@
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 
 use miden_objects::{
     notes::{
@@ -10,7 +10,7 @@ use miden_objects::{
     Digest,
 };
 
-use super::{NoteRecordDetails, NoteStatus, OutputNoteRecord};
+use super::{NoteStatus, OutputNoteRecord};
 use crate::ClientError;
 
 // INPUT NOTE RECORD
@@ -33,8 +33,6 @@ use crate::ClientError;
 #[derive(Clone, Debug, PartialEq)]
 pub struct InputNoteRecord {
     details: NoteDetails,
-    // assets: NoteAssets,
-    // Assets are now part of the note details
     id: NoteId,
     inclusion_proof: Option<NoteInclusionProof>,
     metadata: Option<NoteMetadata>,
@@ -88,8 +86,8 @@ impl InputNoteRecord {
         self.metadata.as_ref()
     }
 
-    pub fn nullifier(&self) -> &str {
-        self.details().nullifier().to_string().as_str()
+    pub fn nullifier(&self) -> String {
+        self.details.nullifier().to_hex()
     }
 
     pub fn inclusion_proof(&self) -> Option<&NoteInclusionProof> {
@@ -221,7 +219,7 @@ impl TryInto<InputNote> for InputNoteRecord {
     type Error = ClientError;
 
     fn try_into(self) -> Result<InputNote, Self::Error> {
-        match (self.inclusion_proof, self.metadata) {
+        match (self.inclusion_proof(), self.metadata) {
             (Some(proof), Some(metadata)) => {
                 // TODO: Write functions to get these fields more easily
                 let note_inputs = NoteInputs::new(self.details().inputs().clone().into())?;

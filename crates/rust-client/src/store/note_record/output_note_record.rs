@@ -1,7 +1,3 @@
-use std::borrow::ToOwned;
-
-use alloc::vec::Vec;
-
 use alloc::string::ToString;
 
 use miden_objects::{
@@ -13,7 +9,7 @@ use miden_objects::{
     Digest,
 };
 
-use super::{InputNoteRecord, NoteRecordDetails, NoteStatus};
+use super::{InputNoteRecord, NoteStatus};
 use crate::ClientError;
 
 // OUTPUT NOTE RECORD
@@ -70,11 +66,11 @@ impl OutputNoteRecord {
         self.recipient
     }
 
-    pub fn assets(&self) -> &NoteAssets {
-        match &self.details() {
-            Some(details) => details.assets(),
-            None => &NoteAssets::new(Vec::new()).unwrap(),
-        }
+    pub fn assets(&self) -> NoteAssets {
+        self.details()
+            .map(NoteDetails::assets)
+            .unwrap_or(&NoteAssets::default())
+            .clone()
     }
 
     pub fn status(&self) -> NoteStatus {

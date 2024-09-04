@@ -237,7 +237,7 @@ fn show_note<N: NodeRpcClient, R: FeltRng, S: Store, A: TransactionAuthenticator
 
     if inputs.is_some() {
         let inputs = inputs.expect("Inputs should be Some");
-        let inputs = NoteInputs::new(inputs.clone()).map_err(ClientError::NoteError)?;
+        let inputs = NoteInputs::new(inputs.clone().into()).map_err(ClientError::NoteError)?;
         let mut table = create_dynamic_table(&["Note Inputs"]);
         table
             .load_preset(presets::UTF8_HORIZONTAL_ONLY)
@@ -344,7 +344,7 @@ fn note_summary(
             (Some(record), _) => {
                 let details = record.details();
                 (
-                    NoteInputs::new(details.inputs().clone())
+                    NoteInputs::new(details.inputs().clone().into())
                         .map_err(ClientError::NoteError)?
                         .commitment()
                         .to_string(),
@@ -355,7 +355,7 @@ fn note_summary(
             (None, Some(record)) if record.details().is_some() => {
                 let details = record.details().expect("output record should have details");
                 (
-                    NoteInputs::new(details.inputs().clone())
+                    NoteInputs::new(details.inputs().clone().into())
                         .map_err(ClientError::NoteError)?
                         .commitment()
                         .to_string(),
