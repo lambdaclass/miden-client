@@ -12,7 +12,7 @@ use miden_client::{
     },
     Client,
 };
-use miden_tx_prover::RemoteTransactionProver;
+use miden_remote_provers::RemoteTransactionProver;
 use tracing::info;
 
 use crate::{
@@ -447,10 +447,18 @@ fn print_transaction_details(transaction_result: &TransactionResult) -> Result<(
         for (asset, action) in account_delta.vault().non_fungible().iter() {
             match action {
                 NonFungibleDeltaAction::Add => {
-                    table.add_row(vec!["Non Fungible Asset", &asset.faucet_id().to_hex(), "1"]);
+                    table.add_row(vec![
+                        "Non Fungible Asset",
+                        &asset.faucet_id_prefix().to_hex(),
+                        "1",
+                    ]);
                 },
                 NonFungibleDeltaAction::Remove => {
-                    table.add_row(vec!["Non Fungible Asset", &asset.faucet_id().to_hex(), "-1"]);
+                    table.add_row(vec![
+                        "Non Fungible Asset",
+                        &asset.faucet_id_prefix().to_hex(),
+                        "-1",
+                    ]);
                 },
             }
         }
