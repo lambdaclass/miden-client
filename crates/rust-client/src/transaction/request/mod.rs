@@ -8,13 +8,13 @@ use alloc::{
 
 use miden_lib::account::interface::{AccountInterface, AccountInterfaceError};
 use miden_objects::{
-    Digest, Felt, NoteError, Word,
     account::AccountId,
     assembly::AssemblyError,
     crypto::merkle::MerkleStore,
     note::{Note, NoteDetails, NoteId, NoteTag, PartialNote},
     transaction::{TransactionArgs, TransactionScript},
     vm::AdviceMap,
+    Digest, Felt, NoteError, Word,
 };
 use miden_tx::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use thiserror::Error;
@@ -290,7 +290,9 @@ pub enum TransactionRequestError {
         "every authenticated note to be consumed should be committed and contain a valid inclusion proof"
     )]
     InputNoteNotAuthenticated,
-    #[error("the input notes map should include keys for all provided unauthenticated input notes")]
+    #[error(
+        "the input notes map should include keys for all provided unauthenticated input notes"
+    )]
     InputNotesMapMissingUnauthenticatedNotes,
     #[error("own notes shouldn't be of the header variant")]
     InvalidNoteVariant,
@@ -323,7 +325,6 @@ mod tests {
 
     use miden_lib::{note::create_p2id_note, transaction::TransactionKernel};
     use miden_objects::{
-        Digest, Felt, ZERO,
         account::{AccountBuilder, AccountId, AccountIdAnchor, AccountType},
         asset::FungibleAsset,
         crypto::rand::{FeltRng, RpoRandomCoin},
@@ -336,6 +337,7 @@ mod tests {
             },
         },
         transaction::OutputNote,
+        Digest, Felt, ZERO,
     };
     use miden_tx::utils::{Deserializable, Serializable};
 
