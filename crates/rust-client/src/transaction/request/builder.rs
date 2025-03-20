@@ -269,7 +269,11 @@ impl TransactionRequestBuilder {
         note_type: NoteType,
         rng: &mut impl FeltRng,
     ) -> Result<Self, TransactionRequestError> {
-        let PaymentTransactionData { assets, target_account_id } = payment_data;
+        let PaymentTransactionData {
+            assets,
+            sender_account_id,
+            target_account_id,
+        } = payment_data;
 
         if assets
             .iter()
@@ -278,27 +282,26 @@ impl TransactionRequestBuilder {
             return Err(TransactionRequestError::P2IDNoteWithoutAsset);
         }
 
-        // let created_note = if let Some(recall_height) = recall_height {
-        //     create_p2idr_note(
-        //         sender_account_id,
-        //         target_account_id,
-        //         assets,
-        //         note_type,
-        //         Felt::ZERO,
-        //         recall_height,
-        //         rng,
-        //     )?
-        // } else {
-        //     create_p2id_note(
-        //         sender_account_id,
-        //         target_account_id,
-        //         assets,
-        //         note_type,
-        //         Felt::ZERO,
-        //         rng,
-        //     )?
-        // };
-        let created_note = todo!();
+        let created_note = if let Some(recall_height) = recall_height {
+            create_p2idr_note(
+                sender_account_id,
+                target_account_id,
+                assets,
+                note_type,
+                Felt::ZERO,
+                recall_height,
+                rng,
+            )?
+        } else {
+            create_p2id_note(
+                sender_account_id,
+                target_account_id,
+                assets,
+                note_type,
+                Felt::ZERO,
+                rng,
+            )?
+        };
 
         Ok(Self::new().with_own_output_notes(vec![OutputNote::Full(created_note)]))
     }
@@ -398,8 +401,8 @@ impl TransactionRequestBuilder {
 pub struct PaymentTransactionData {
     /// Assets that are meant to be sent to the target account.
     assets: Vec<Asset>,
-    // /// Account ID of the sender account.
-    // sender_account_id: AccountId,
+    /// Account ID of the sender account.
+    sender_account_id: AccountId,
     /// Account ID of the receiver account.
     target_account_id: AccountId,
 }
@@ -414,13 +417,17 @@ impl PaymentTransactionData {
         sender_account_id: AccountId,
         target_account_id: AccountId,
     ) -> PaymentTransactionData {
-        PaymentTransactionData { assets, target_account_id }
+        PaymentTransactionData {
+            assets,
+            sender_account_id,
+            target_account_id,
+        }
     }
 
-    // /// Returns the executor [`AccountId`].
-    // pub fn account_id(&self) -> AccountId {
-    //     self.sender_account_id
-    // }
+    /// Returns the executor [`AccountId`].
+    pub fn account_id(&self) -> AccountId {
+        self.sender_account_id
+    }
 
     /// Returns the target [`AccountId`].
     pub fn target_account_id(&self) -> AccountId {
