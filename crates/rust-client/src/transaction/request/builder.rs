@@ -398,6 +398,7 @@ impl TransactionRequestBuilder {
             input_notes: self.input_notes,
             script_template,
             expected_output_notes: self.expected_output_notes,
+            payment_transaction_data: self.payment_transaction_data,
             expected_future_notes: self.expected_future_notes,
             advice_map: self.advice_map,
             merkle_store: self.merkle_store,
@@ -424,7 +425,7 @@ pub struct PaymentTransactionData {
 }
 
 /// Contains information about a payment transaction.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PaymentTransactionData2 {
     /// Assets that are meant to be sent to the target account.
     assets: Vec<Asset>,

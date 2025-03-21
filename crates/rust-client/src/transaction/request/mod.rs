@@ -20,7 +20,9 @@ use miden_tx::utils::{ByteReader, ByteWriter, Deserializable, DeserializationErr
 use thiserror::Error;
 
 mod builder;
-pub use builder::{PaymentTransactionData, SwapTransactionData, TransactionRequestBuilder};
+pub use builder::{
+    PaymentTransactionData, PaymentTransactionData2, SwapTransactionData, TransactionRequestBuilder,
+};
 
 mod foreign;
 pub use foreign::{ForeignAccount, ForeignAccountInputs};
@@ -71,6 +73,10 @@ pub struct TransactionRequest {
     advice_map: AdviceMap,
     /// Initial state of the `MerkleStore` that provides data during runtime.
     merkle_store: MerkleStore,
+    /// TODO: Add documentation
+    /// TODO: Change struct member name
+    /// TODO: Maybe Change PaymentTransactionData struct name?
+    payment_transaction_data: Vec<PaymentTransactionData2>,
     /// Foreign account data requirements. At execution time, account data will be retrieved from
     /// the network, and injected as advice inputs. Additionally, the account's code will be
     /// added to the executor and prover.
@@ -258,6 +264,7 @@ impl Deserializable for TransactionRequest {
             unauthenticated_input_notes,
             input_notes,
             script_template,
+            payment_transaction_data: Vec::new(),
             expected_output_notes,
             expected_future_notes,
             advice_map,
