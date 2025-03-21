@@ -442,13 +442,14 @@ impl<R: FeltRng> Client<R> {
 
         let note_ids = transaction_request.get_input_note_ids();
 
-        let output_notes: Vec<Note> =
-            transaction_request.expected_output_notes().cloned().collect();
-
-        let p2ids: Vec<Note> = transaction_request
+        let mut p2ids: Vec<Note> = transaction_request
             .expected_p2ids()
             .map(|p2iddata| self.build_p2id_transaction(account_id, p2iddata.clone()))
             .collect::<Result<Vec<Note>, NoteError>>()?;
+
+        let mut output_notes: Vec<Note> =
+            transaction_request.expected_output_notes().cloned().collect();
+        output_notes.append(&mut p2ids);
 
         let future_notes: Vec<(NoteDetails, NoteTag)> =
             transaction_request.expected_future_notes().cloned().collect();
