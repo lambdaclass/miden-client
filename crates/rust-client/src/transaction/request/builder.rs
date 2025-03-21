@@ -43,7 +43,7 @@ pub struct TransactionRequestBuilder {
     /// TODO: Add documentation
     /// TODO: Change struct member name
     /// TODO: Maybe Change PaymentTransactionData struct name?
-    payment_transaction_data: Vec<PaymentTransactionData>,
+    payment_transaction_data: Vec<PaymentTransactionData2>,
     /// A map of details and tags of notes we expect to be created as part of future transactions
     /// with their respective tags.
     ///
@@ -126,6 +126,11 @@ impl TransactionRequestBuilder {
             self.own_output_notes.push(note);
         }
 
+        self
+    }
+
+    pub fn with_p2id(mut self, p2iddata: PaymentTransactionData2) -> Self {
+        self.payment_transaction_data.push(p2iddata);
         self
     }
 
@@ -282,28 +287,37 @@ impl TransactionRequestBuilder {
             return Err(TransactionRequestError::P2IDNoteWithoutAsset);
         }
 
-        let created_note = if let Some(recall_height) = recall_height {
-            create_p2idr_note(
-                sender_account_id,
-                target_account_id,
-                assets,
-                note_type,
-                Felt::ZERO,
-                recall_height,
-                rng,
-            )?
-        } else {
-            create_p2id_note(
-                sender_account_id,
-                target_account_id,
-                assets,
-                note_type,
-                Felt::ZERO,
-                rng,
-            )?
+        let p2id = PaymentTransactionData2 {
+            assets,
+            target_account_id,
+            recall_height,
+            note_type,
         };
 
-        Ok(Self::new().with_own_output_notes(vec![OutputNote::Full(created_note)]))
+        // let current
+
+        // let created_note = if let Some(recall_height) = recall_height {
+        //     create_p2idr_note(
+        //         sender_account_id,
+        //         target_account_id,
+        //         assets,
+        //         note_type,
+        //         Felt::ZERO,
+        //         recall_height,
+        //         rng,
+        //     )?
+        // } else {
+        //     create_p2id_note(
+        //         sender_account_id,
+        //         target_account_id,
+        //         assets,
+        //         note_type,
+        //         Felt::ZERO,
+        //         rng,
+        //     )?
+        // };
+
+        Ok(Self::new().with_p2id(p2id))
     }
 
     /// Returns a new [`TransactionRequestBuilder`] for a transaction to send a SWAP note. This
@@ -405,6 +419,21 @@ pub struct PaymentTransactionData {
     sender_account_id: AccountId,
     /// Account ID of the receiver account.
     target_account_id: AccountId,
+    // recall_height: Option<BlockNumber>,
+    // note_type: NoteType,
+}
+
+/// Contains information about a payment transaction.
+#[derive(Clone, Debug)]
+pub struct PaymentTransactionData2 {
+    /// Assets that are meant to be sent to the target account.
+    assets: Vec<Asset>,
+    // /// Account ID of the sender account.
+    // sender_account_id: AccountId,
+    /// Account ID of the receiver account.
+    target_account_id: AccountId,
+    recall_height: Option<BlockNumber>,
+    note_type: NoteType,
 }
 
 impl PaymentTransactionData {
