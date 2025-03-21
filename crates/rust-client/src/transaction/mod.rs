@@ -454,11 +454,14 @@ impl<R: FeltRng> Client<R> {
 
         let mut output_notes: Vec<Note> =
             transaction_request.expected_output_notes().cloned().collect();
-        output_notes.append(&mut p2ids);
+        let mut transaction_request = transaction_request.clone();
+        for note in p2ids.clone() {
+            transaction_request.expected_output_notes.insert(note.id(), note);
+        }
+        // output_notes.append(&mut p2ids);
 
         let mut partial_notes = p2ids.iter().map(|a| a.into()).collect::<Vec<PartialNote>>();
 
-        let mut transaction_request = transaction_request.clone();
         // transaction_request.script_template =
         //     Some(TransactionScriptTemplate::SendNotes(partial_notes));
 
@@ -471,6 +474,7 @@ impl<R: FeltRng> Client<R> {
             None => Some(TransactionScriptTemplate::SendNotes(partial_notes)),
             _ => transaction_request.script_template,
         };
+        std::dbg!(&transaction_request);
         // if .is_none() {
         //     std::dbg!(notes);
         // };
@@ -508,6 +512,7 @@ impl<R: FeltRng> Client<R> {
             .tx_executor
             .execute_transaction(account_id, block_num, &note_ids, tx_args)
             .await?;
+        std::dbg!("SALMON");
 
         // Check that the expected output notes matches the transaction outcome.
         // We compare authentication commitments where possible since that involves note IDs +
@@ -519,14 +524,17 @@ impl<R: FeltRng> Client<R> {
                 .map(Note::commitment)
                 .collect();
 
+        std::dbg!("NUTRIA");
         let missing_note_ids: Vec<NoteId> = output_notes
             .iter()
             .filter_map(|n| (!tx_note_auth_commitments.contains(&n.commitment())).then_some(n.id()))
             .collect();
 
+        std::dbg!("HIGOS");
         if !missing_note_ids.is_empty() {
             return Err(ClientError::MissingOutputNotes(missing_note_ids));
         }
+        std::dbg!("ALMIBAR");
 
         let screener = NoteScreener::new(self.store.clone());
 
