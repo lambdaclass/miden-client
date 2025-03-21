@@ -5,6 +5,7 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
+use miden_lib::note::{create_p2id_note, create_p2idr_note};
 
 use miden_lib::account::interface::{AccountInterface, AccountInterfaceError};
 use miden_objects::{
@@ -133,6 +134,11 @@ impl TransactionRequest {
     /// Returns an iterator over the expected output notes.
     pub fn expected_output_notes(&self) -> impl Iterator<Item = &Note> {
         self.expected_output_notes.values()
+    }
+
+    /// Returns an iterator over the expected P2ID* notes
+    pub fn expected_p2ids(&self) -> impl Iterator<Item = &PaymentTransactionData2> {
+        self.payment_transaction_data.iter()
     }
 
     /// Returns an iterator over expected future notes.

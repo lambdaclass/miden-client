@@ -296,27 +296,6 @@ impl TransactionRequestBuilder {
 
         // let current
 
-        // let created_note = if let Some(recall_height) = recall_height {
-        //     create_p2idr_note(
-        //         sender_account_id,
-        //         target_account_id,
-        //         assets,
-        //         note_type,
-        //         Felt::ZERO,
-        //         recall_height,
-        //         rng,
-        //     )?
-        // } else {
-        //     create_p2id_note(
-        //         sender_account_id,
-        //         target_account_id,
-        //         assets,
-        //         note_type,
-        //         Felt::ZERO,
-        //         rng,
-        //     )?
-        // };
-
         Ok(Self::new().with_p2id(p2id))
     }
 
@@ -428,13 +407,13 @@ pub struct PaymentTransactionData {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PaymentTransactionData2 {
     /// Assets that are meant to be sent to the target account.
-    assets: Vec<Asset>,
+    pub assets: Vec<Asset>,
     // /// Account ID of the sender account.
     // sender_account_id: AccountId,
     /// Account ID of the receiver account.
-    target_account_id: AccountId,
-    recall_height: Option<BlockNumber>,
-    note_type: NoteType,
+    pub target_account_id: AccountId,
+    pub recall_height: Option<BlockNumber>,
+    pub note_type: NoteType,
 }
 
 impl PaymentTransactionData {

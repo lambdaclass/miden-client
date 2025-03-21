@@ -75,8 +75,9 @@ pub use miden_lib::{
     account::interface::{AccountComponentInterface, AccountInterface},
     transaction::TransactionKernel,
 };
+
+use miden_objects::NoteError;
 use miden_objects::{
-    AssetError, Digest, Felt, Word, ZERO,
     account::{Account, AccountCode, AccountDelta, AccountId},
     asset::{Asset, NonFungibleAsset},
     block::BlockNumber,
@@ -84,27 +85,28 @@ use miden_objects::{
     note::{Note, NoteDetails, NoteId, NoteTag},
     transaction::{InputNotes, TransactionArgs},
     vm::AdviceInputs,
+    AssetError, Digest, Felt, FieldElement, Word, ZERO,
 };
 pub use miden_tx::{
-    LocalTransactionProver, ProvingOptions, TransactionProver, TransactionProverError,
-    auth::TransactionAuthenticator,
+    auth::TransactionAuthenticator, LocalTransactionProver, ProvingOptions, TransactionProver,
+    TransactionProverError,
 };
 use miden_tx::{
-    TransactionExecutor,
     utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable},
+    TransactionExecutor,
 };
 use tracing::info;
 
 use super::{Client, FeltRng};
 use crate::{
-    ClientError,
     note::{NoteScreener, NoteUpdates},
     rpc::domain::account::AccountProof,
     store::{
-        InputNoteRecord, InputNoteState, NoteFilter, OutputNoteRecord, StoreError,
-        TransactionFilter, input_note_states::ExpectedNoteState,
+        input_note_states::ExpectedNoteState, InputNoteRecord, InputNoteState, NoteFilter,
+        OutputNoteRecord, StoreError, TransactionFilter,
     },
     sync::NoteTagRecord,
+    ClientError,
 };
 
 mod request;
@@ -114,10 +116,12 @@ pub use miden_objects::transaction::{
 };
 pub use miden_tx::{DataStoreError, TransactionExecutorError};
 pub use request::{
-    ForeignAccount, ForeignAccountInputs, NoteArgs, PaymentTransactionData, SwapTransactionData,
-    TransactionRequest, TransactionRequestBuilder, TransactionRequestError,
-    TransactionScriptTemplate,
+    ForeignAccount, ForeignAccountInputs, NoteArgs, PaymentTransactionData,
+    PaymentTransactionData2, SwapTransactionData, TransactionRequest, TransactionRequestBuilder,
+    TransactionRequestError, TransactionScriptTemplate,
 };
+
+use miden_lib::note::{create_p2id_note, create_p2idr_note};
 
 // TRANSACTION RESULT
 // ================================================================================================
@@ -441,6 +445,11 @@ impl<R: FeltRng> Client<R> {
         let output_notes: Vec<Note> =
             transaction_request.expected_output_notes().cloned().collect();
 
+        let p2ids: Vec<Note> = transaction_request
+            .expected_p2ids()
+            .map(|p2iddata| self.build_p2id_transaction(account_id, p2iddata.clone()))
+            .collect::<Result<Vec<Note>, NoteError>>()?;
+
         let future_notes: Vec<(NoteDetails, NoteTag)> =
             transaction_request.expected_future_notes().cloned().collect();
 
@@ -497,6 +506,41 @@ impl<R: FeltRng> Client<R> {
             self.store.get_current_timestamp(),
         )
         .await
+    }
+    /// TODO: Document
+    /// Genera un note , ponerlo en el nombre
+    fn build_p2id_transaction(
+        &mut self,
+        account_id: AccountId,
+        p2iddata: PaymentTransactionData2,
+    ) -> Result<Note, NoteError> {
+        let PaymentTransactionData2 {
+            assets,
+            target_account_id,
+            recall_height,
+            note_type,
+        } = p2iddata;
+
+        if let Some(recall_height) = recall_height {
+            create_p2idr_note(
+                account_id,
+                target_account_id,
+                assets,
+                note_type,
+                Felt::ZERO,
+                recall_height,
+                &mut self.rng,
+            )
+        } else {
+            create_p2id_note(
+                account_id,
+                target_account_id,
+                assets,
+                note_type,
+                Felt::ZERO,
+                &mut self.rng,
+            )
+        }
     }
 
     /// Proves the specified transaction using a local prover, submits it to the network, and saves
@@ -1036,7 +1080,6 @@ pub fn notes_from_output(output_notes: &OutputNotes) -> impl Iterator<Item = &No
 mod test {
     use miden_lib::{account::auth::RpoFalcon512, transaction::TransactionKernel};
     use miden_objects::{
-        Word,
         account::{AccountBuilder, AccountComponent, AuthSecretKey, StorageMap, StorageSlot},
         asset::{Asset, FungibleAsset},
         crypto::dsa::rpo_falcon512::SecretKey,
@@ -1048,6 +1091,7 @@ mod test {
                 ACCOUNT_ID_REGULAR_PUBLIC_ACCOUNT_IMMUTABLE_CODE,
             },
         },
+        Word,
     };
     use miden_tx::utils::{Deserializable, Serializable};
 
@@ -1108,13 +1152,11 @@ mod test {
         .unwrap();
 
         let tx_result = client.new_transaction(account.id(), tx_request).await.unwrap();
-        assert!(
-            tx_result
-                .created_notes()
-                .get_note(0)
-                .assets()
-                .is_some_and(|assets| assets.num_assets() == 2)
-        );
+        assert!(tx_result
+            .created_notes()
+            .get_note(0)
+            .assets()
+            .is_some_and(|assets| assets.num_assets() == 2));
         // Prove and apply transaction
         client.testing_apply_transaction(tx_result.clone()).await.unwrap();
 
