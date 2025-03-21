@@ -76,6 +76,7 @@ pub use miden_lib::{
     transaction::TransactionKernel,
 };
 
+use miden_objects::note::PartialNote;
 use miden_objects::NoteError;
 use miden_objects::{
     account::{Account, AccountCode, AccountDelta, AccountId},
@@ -408,6 +409,14 @@ impl<R: FeltRng> Client<R> {
         account_id: AccountId,
         transaction_request: TransactionRequest,
     ) -> Result<TransactionResult, ClientError> {
+        let mut p2ids: Vec<Note> = transaction_request
+            .expected_p2ids()
+            .map(|p2iddata| self.build_p2id_transaction(account_id.clone(), p2iddata.clone()))
+            .collect::<Result<Vec<Note>, NoteError>>()?;
+
+        // let new
+        std::dbg!(transaction_request.script_template());
+
         // Validates the transaction request before executing
         self.validate_request(account_id, &transaction_request).await?;
 
@@ -441,24 +450,44 @@ impl<R: FeltRng> Client<R> {
         self.store.upsert_input_notes(&unauthenticated_input_notes).await?;
 
         let note_ids = transaction_request.get_input_note_ids();
-
-        let mut p2ids: Vec<Note> = transaction_request
-            .expected_p2ids()
-            .map(|p2iddata| self.build_p2id_transaction(account_id, p2iddata.clone()))
-            .collect::<Result<Vec<Note>, NoteError>>()?;
+        std::dbg!("JAMON");
 
         let mut output_notes: Vec<Note> =
             transaction_request.expected_output_notes().cloned().collect();
         output_notes.append(&mut p2ids);
 
+        let mut partial_notes = p2ids.iter().map(|a| a.into()).collect::<Vec<PartialNote>>();
+
+        let mut transaction_request = transaction_request.clone();
+        // transaction_request.script_template =
+        //     Some(TransactionScriptTemplate::SendNotes(partial_notes));
+
+        transaction_request.script_template = match &transaction_request.script_template {
+            Some(TransactionScriptTemplate::SendNotes(notes)) => {
+                let mut notes = notes.clone();
+                notes.append(&mut partial_notes);
+                Some(TransactionScriptTemplate::SendNotes(notes))
+            },
+            None => Some(TransactionScriptTemplate::SendNotes(partial_notes)),
+            _ => transaction_request.script_template,
+        };
+        // if .is_none() {
+        //     std::dbg!(notes);
+        // };
+
+        std::dbg!("QUESO");
+
         let future_notes: Vec<(NoteDetails, NoteTag)> =
             transaction_request.expected_future_notes().cloned().collect();
 
+        std::dbg!("SKIBIDI");
         let tx_script = transaction_request.build_transaction_script(
             &self.get_account_interface(account_id).await?,
             self.in_debug_mode,
         )?;
+        // transaction_request.
 
+        std::dbg!("MOTONETA");
         let foreign_accounts = transaction_request.foreign_accounts().clone();
         let mut tx_args = transaction_request.into_transaction_args(tx_script);
 
@@ -466,12 +495,14 @@ impl<R: FeltRng> Client<R> {
         let fpi_block_num =
             self.inject_foreign_account_inputs(foreign_accounts, &mut tx_args).await?;
 
+        std::dbg!("TOILET");
         let block_num = if let Some(block_num) = fpi_block_num {
             block_num
         } else {
             self.store.get_sync_height().await?
         };
 
+        std::dbg!("AUTO");
         // Execute the transaction and get the witness
         let executed_transaction = self
             .tx_executor
@@ -498,6 +529,8 @@ impl<R: FeltRng> Client<R> {
         }
 
         let screener = NoteScreener::new(self.store.clone());
+
+        std::dbg!("PERRO");
 
         TransactionResult::new(
             executed_transaction,
@@ -1104,19 +1137,26 @@ mod test {
 
     #[tokio::test]
     async fn test_transaction_creates_two_notes() {
+        std::dbg!("-3");
         let (mut client, _, keystore) = create_test_client().await;
+        std::dbg!("-2");
         let asset_1: Asset =
             FungibleAsset::new(ACCOUNT_ID_PRIVATE_FUNGIBLE_FAUCET.try_into().unwrap(), 123)
                 .unwrap()
                 .into();
+        std::dbg!("-1");
         let asset_2: Asset =
             FungibleAsset::new(ACCOUNT_ID_PUBLIC_FUNGIBLE_FAUCET.try_into().unwrap(), 500)
                 .unwrap()
                 .into();
+        std::dbg!("0");
 
         let secret_key = SecretKey::new();
+        std::dbg!("1");
         let pub_key = secret_key.public_key();
+        std::dbg!("2");
         keystore.add_key(&AuthSecretKey::RpoFalcon512(secret_key)).unwrap();
+        std::dbg!("3");
 
         let wallet_component = AccountComponent::compile(
             BASIC_WALLET_CODE,
@@ -1125,8 +1165,10 @@ mod test {
         )
         .unwrap()
         .with_supports_all_types();
+        std::dbg!("4");
 
         let anchor_block = client.get_latest_epoch_block().await.unwrap();
+        std::dbg!("5");
 
         let account = AccountBuilder::new(Default::default())
             .anchor((&anchor_block).try_into().unwrap())
@@ -1135,9 +1177,12 @@ mod test {
             .with_assets([asset_1, asset_2])
             .build_existing()
             .unwrap();
+        std::dbg!("6");
 
         client.add_account(&account, None, false).await.unwrap();
+        std::dbg!("7");
         client.sync_state().await.unwrap();
+        std::dbg!("8");
         let tx_request = TransactionRequestBuilder::pay_to_id(
             PaymentTransactionData::new(
                 vec![asset_1, asset_2],
@@ -1151,6 +1196,7 @@ mod test {
         .unwrap()
         .build()
         .unwrap();
+        std::dbg!("9");
 
         let tx_result = client.new_transaction(account.id(), tx_request).await.unwrap();
         assert!(tx_result
@@ -1161,6 +1207,7 @@ mod test {
         // Prove and apply transaction
         client.testing_apply_transaction(tx_result.clone()).await.unwrap();
 
+        std::dbg!("10");
         // Test serialization
         let bytes: std::vec::Vec<u8> = tx_result.to_bytes();
         let decoded = TransactionResult::read_from_bytes(&bytes).unwrap();
