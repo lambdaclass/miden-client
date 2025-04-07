@@ -6,6 +6,7 @@
 
 * Updated Web Client README and Documentation (#808).
 * [BREAKING] Removed `script_roots` mod in favor of `WellKnownNote` (#834).
+* Change exec's input file format to TOML instead of JSON (#TBD).
 
 ## 0.8.1 (2025-03-28)
 
