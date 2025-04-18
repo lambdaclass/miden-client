@@ -124,8 +124,8 @@ impl ExecCmd {
 // INPUT FILE PROCESSING
 // ===============================================================================================
 
-/// Struct that holds a single key-values pair from the provided file inputs file. These will be
-/// aggregated in the [CliTxInputs] struct
+/// Struct that holds a single key-values pair from the provided file inputs file. These will be aggregated
+/// in the [CliTxInputs] struct
 #[derive(Serialize, Deserialize)]
 struct CliTxInput {
     key: String,
@@ -133,6 +133,8 @@ struct CliTxInput {
     values: Vec<u64>,
 }
 
+/// Struct that holds every key-values pair present in the provided inputs file. This struct can be
+/// iterated on to access the different keys.
 #[derive(Serialize, Deserialize)]
 struct CliTxInputs {
     inputs: Vec<CliTxInput>,
@@ -147,10 +149,9 @@ impl IntoIterator for CliTxInputs {
     }
 }
 
-/// Because the toml crate has problems parsing u64 values (see
-/// [issue](https://github.com/toml-rs/toml/issues/705), we store the values as
-/// Strings. Then, when deserializing we turn those String to u64 in order to
-/// then turn them to Felts.
+/// Since the toml crate has problems parsing u64 values (see
+/// [issue](https://github.com/toml-rs/toml/issues/705), we store the values as Strings. Then, when
+/// deserializing, we turn those Strings to u64 in order to then turn them to Felts.
 fn string_to_u64<'de, D>(deserializer: D) -> Result<Vec<u64>, D::Error>
 where
     D: Deserializer<'de>,
