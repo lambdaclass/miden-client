@@ -10,10 +10,10 @@ begin
     adv.push_mapval
 
     # Drop the numbers used to access the advice map key
-    drop
-    drop
-    drop
-    drop
+    dropw
+    dropw
+    dropw
+    dropw
 
     # Pushes 2 words from the advice stack to the operand stack (1 and 2)
     adv_push.2
