@@ -2,8 +2,8 @@ use std::{collections::BTreeSet, path::PathBuf};
 
 use clap::Parser;
 use miden_client::{Client, Felt, Word};
-use miden_objects::{Digest, vm::AdviceInputs};
-use serde::{Deserialize, Deserializer, Serialize, de};
+use miden_objects::{vm::AdviceInputs, Digest};
+use serde::{de, Deserialize, Deserializer, Serialize};
 
 use crate::{errors::CliError, utils::get_input_acc_id_by_prefix_or_default};
 
@@ -118,6 +118,11 @@ impl ExecCmd {
     }
 }
 
+// INPUT FILE PROCESSING
+// ===============================================================================================
+
+/// Struct that holds a single key-values pair from the provided file inputs file. These will be
+/// aggregated in the [CliTxInputs] struct
 #[derive(Serialize, Deserialize)]
 struct CliTxInput {
     key: String,
