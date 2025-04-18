@@ -21,17 +21,19 @@ pub struct ExecCmd {
     #[clap(long, short)]
     script_path: String,
 
-    /// Path to the inputs file. This file will be used for the VM's [Advice Map](https://0xpolygonmiden.github.io/miden-docs/imported/miden-vm/src/intro/overview.html?highlight=advice#nondeterministic-inputs).
+    /// Path to the inputs file. This file will be used as inputs to the VM's advice map.
     ///
-    /// The file should contain a TOML array of [inline
-    /// tables](https://toml.io/en/v1.0.0#inline-table), where each table has
-    /// two fields:
+    /// The file should contain a TOML array of inline tables, where each table has two fields:
     /// - `key`: a 256-bit hexadecimal string representing a word to be used as a key for the input
     ///   entry
     /// - `values`: an array of 64-bit unsigned integers representing field elements to be used as
     ///   values for the input entry.
     ///
-    /// An example file can be found in bin/miden-cli/src/files/input.toml
+    /// The input file should contain a TOML table called `inputs`, as in the following example:
+    ///    inputs = [
+    ///        { key = "0x0000001", values = ["13", "9"]},
+    ///        { key = "0x0" , values = ["1", "2"]},
+    ///    ]
     #[clap(long, short)]
     inputs_path: Option<String>,
 
