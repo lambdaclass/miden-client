@@ -726,9 +726,11 @@ fn assert_command_fails_but_does_not_panic(command: &mut Command) {
 
 #[test]
 fn test_exec_parse() {
-    let failure_script = fs::canonicalize("tests/files/failure.masm").unwrap();
-    let success_script = fs::canonicalize("tests/files/success.masm").unwrap();
-    let toml_path = fs::canonicalize("tests/files/input.toml").unwrap();
+    let failure_script =
+        fs::canonicalize("tests/files/test_cli_advice_inputs_expect_failure.masm").unwrap();
+    let success_script =
+        fs::canonicalize("tests/files/test_cli_advice_inputs_expect_success.masm").unwrap();
+    let toml_path = fs::canonicalize("tests/files/test_cli_advice_inputs_input.toml").unwrap();
 
     let temp_dir = init_cli().1;
 
