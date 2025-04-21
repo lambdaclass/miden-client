@@ -9,7 +9,7 @@
 * Made non-default options lowercase when prompting for transaction confirmation (#843)
 * [BREAKING] Updated keystore to accept arbitrarily large public keys (#833).
 * Added Examples to Mdbook for Web Client (#850).
-* Change exec's input file format to TOML instead of JSON (#TBD).
+* Changed exec's input file format to TOML instead of JSON (#TBD).
 
 ## 0.8.2 (TBD)
 
