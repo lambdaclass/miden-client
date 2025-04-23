@@ -2,6 +2,10 @@
 
 ## 0.9.0 (TBD)
 
+### Features
+
+* Added support for `bech32` account IDs in the CLI (#840).
+
 ### Changes
 
 * Updated Web Client README and Documentation (#808).
@@ -9,6 +13,7 @@
 * Made non-default options lowercase when prompting for transaction confirmation (#843)
 * [BREAKING] Updated keystore to accept arbitrarily large public keys (#833).
 * Added Examples to Mdbook for Web Client (#850).
+* Added account code to `miden account --show` command (#835).
 * Changed exec's input file format to TOML instead of JSON (#TBD).
 
 ## 0.8.2 (TBD)
