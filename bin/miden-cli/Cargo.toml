@@ -1,5 +1,5 @@
 [package]
-name = "miden-cli"
+name = "miden-client-cli"
 version = "0.9.4"
 description = "CLI binary application that facilitates interaction with the Miden rollup"
 readme = "README.md"
@@ -13,7 +13,7 @@ rust-version.workspace = true
 edition.workspace = true
 
 [[bin]]
-name = "miden"
+name = "miden-client"
 path = "src/main.rs"
 
 [lints]

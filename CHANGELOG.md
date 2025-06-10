@@ -12,10 +12,15 @@
 
 * Refresh dependencies (#972).
 
+### Changes
+
+* [BREAKING] Renamed `miden-cli` crate to `miden-client-cli`, and the `miden` executable to `miden-client` (#960).
+
 ### Features
 
 * Added necessary methods to support network transactions in the Web Client (#955).
 
+* Added support for FPI in Web Client (#958).
 ### Changes
 
 * Fixed wasm-opt options to improve performance of generated wasm (#961).
