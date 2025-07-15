@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use miden_objects::{
     Felt as NativeFelt,
     account::{AccountId as NativeAccountId, NetworkId},
@@ -41,9 +43,27 @@ impl AccountId {
     }
 
     #[wasm_bindgen(js_name = "toBech32")]
-    pub fn to_bech32(&self) -> String {
-        let network_id = NetworkId::Testnet;
-        self.0.to_bech32(network_id)
+    /// Will turn the Account ID into its bech32 string representation.
+    /// To avoid a potential wrongful encoding, this function will
+    /// expect only ids for either mainnet, testnet or devnet.
+    /// To use a custom bech32 prefix, use `Self::to_bech_32_custom`.
+    pub fn to_bech32(&self, network_id: &str) -> Result<String, String> {
+        match NetworkId::from_str(network_id) {
+            Ok(NetworkId::Custom(_)) => {
+                Err("Expected network id for either mainnet, testnet or devnet".to_owned())
+            },
+            Ok(net_id) => Ok(self.0.to_bech32(net_id)),
+            Err(err) => Err(format!("Given network id is not valid: {err}")),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "toBech32Custom")]
+    /// Turn this Account ID into its bech32 string representation.
+    /// This method accepts a custom network id.
+    pub fn to_bech32_custom(&self, network_id: &str) -> Result<String, String> {
+        NetworkId::from_str(network_id)
+            .map(|valid_net_id| self.0.to_bech32(valid_net_id))
+            .map_err(|err| format!("Given network id is not valid: {err}"))
     }
 
     pub fn prefix(&self) -> Felt {
