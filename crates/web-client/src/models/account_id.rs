@@ -42,11 +42,11 @@ impl AccountId {
         self.0.to_string()
     }
 
-    #[wasm_bindgen(js_name = "toBech32")]
     /// Will turn the Account ID into its bech32 string representation.
     /// To avoid a potential wrongful encoding, this function will
     /// expect only ids for either mainnet, testnet or devnet.
     /// To use a custom bech32 prefix, use `Self::to_bech_32_custom`.
+    #[wasm_bindgen(js_name = "toBech32")]
     pub fn to_bech32(&self, network_id: &str) -> Result<String, String> {
         match NetworkId::from_str(network_id) {
             Ok(NetworkId::Custom(_)) => {
