@@ -64,7 +64,7 @@
 
 Will turn the Account ID into its bech32 string representation.
 To avoid a potential wrongful encoding, this function will
-expect only ids for either mainnet, testnet or devnet.
+expect only IDs for either mainnet ("mm"), testnet ("mtst") or devnet ("mdev").
 To use a custom bech32 prefix, use `Self::to_bech_32_custom`.
 
 #### Parameters
@@ -84,7 +84,7 @@ To use a custom bech32 prefix, use `Self::to_bech_32_custom`.
 > **toBech32Custom**(`network_id`): `string`
 
 Turn this Account ID into its bech32 string representation.
-This method accepts a custom network id.
+This method accepts a custom network ID.
 
 #### Parameters
 
