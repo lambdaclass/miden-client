@@ -57,9 +57,9 @@ impl AccountId {
         }
     }
 
-    #[wasm_bindgen(js_name = "toBech32Custom")]
     /// Turn this Account ID into its bech32 string representation.
     /// This method accepts a custom network id.
+    #[wasm_bindgen(js_name = "toBech32Custom")]
     pub fn to_bech32_custom(&self, network_id: &str) -> Result<String, String> {
         let network_id = NetworkId::from_str(network_id)
             .map_err(|err| format!("Given network id is not valid: {err}"))?;
