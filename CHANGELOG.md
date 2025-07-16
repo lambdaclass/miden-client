@@ -3,6 +3,7 @@
 ## 0.11.0 (TBD)
 
 - [BREAKING] Incremented MSRV to 1.88.
+- [BREAKING] `toBech32` AccountID method now expects a parameter to specify the network id.
 
 ## 0.10.0 (2025-07-12)
 
