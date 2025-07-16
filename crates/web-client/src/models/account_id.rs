@@ -61,9 +61,12 @@ impl AccountId {
     /// Turn this Account ID into its bech32 string representation.
     /// This method accepts a custom network id.
     pub fn to_bech32_custom(&self, network_id: &str) -> Result<String, String> {
-        NetworkId::from_str(network_id)
-            .map(|valid_net_id| self.0.to_bech32(valid_net_id))
-            .map_err(|err| format!("Given network id is not valid: {err}"))
+        let network_id = NetworkId::from_str(network_id)
+            .map_err(|err| format!("Given network id is not valid: {err}"))?;
+        match network_id {
+            NetworkId::Custom(_) => Ok(self.0.to_bech32(network_id)),
+            _ => Err("Expected a custom network id".to_owned()),
+        }
     }
 
     pub fn prefix(&self) -> Felt {
