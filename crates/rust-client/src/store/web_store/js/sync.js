@@ -78,6 +78,8 @@ export async function removeNoteTag(tag, sourceNoteId, sourceAccountId) {
   }
 }
 
+export async function receiveStateSync(stateSync) {}
+
 export async function applyStateSync(
   blockNum,
   newBlockHeadersAsFlattenedVec,
