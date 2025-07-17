@@ -17,7 +17,7 @@ use super::{
     account::utils::update_account,
     chain_data::utils::{SerializedPartialBlockchainNodeData, serialize_partial_blockchain_node},
     note::utils::{apply_note_updates_tx, serialize_input_note, serialize_output_note},
-    transaction::utils::upsert_transaction_record,
+    transaction::utils::{serialize_transaction_record, upsert_transaction_record},
 };
 use crate::{
     store::StoreError,
@@ -26,8 +26,8 @@ use crate::{
 
 mod js_bindings;
 use js_bindings::{
-    JsStateSyncUpdate, idxdb_add_note_tag, idxdb_apply_state_sync, idxdb_get_note_tags,
-    idxdb_get_sync_height, idxdb_receive_state_sync, idxdb_remove_note_tag,
+    JsAccountUpdate, JsStateSyncUpdate, idxdb_add_note_tag, idxdb_apply_state_sync,
+    idxdb_get_note_tags, idxdb_get_sync_height, idxdb_receive_state_sync, idxdb_remove_note_tag,
 };
 
 mod models;
@@ -187,22 +187,11 @@ impl WebStore {
             })
             .collect();
 
-        // Upsert updated transactions
-        for transaction_record in transaction_updates
-            .committed_transactions()
-            .chain(transaction_updates.discarded_transactions())
-        {
-            // upsert_transaction_record(transaction_record).await?;
-        }
-
         // TODO: LOP INTO idxdb_apply_state_sync call
         // Update public accounts on the db that have been updated onchain
-        for account in account_updates.updated_public_accounts() {
-            // update_account(&account.clone()).await.map_err(|err| {
-            //     StoreError::DatabaseError(format!("failed to update account: {err:?}"))
-            // })?;
-        }
 
+        // FIXME: See how to handle this properly, but
+        // I think it's okay to handle it here.
         for (account_id, digest) in account_updates.mismatched_private_accounts() {
             self.lock_account_on_unexpected_commitment(account_id, digest).await.map_err(
                 |err| {
@@ -216,6 +205,12 @@ impl WebStore {
             .map(|tx_record| tx_record.details.final_account_state)
             .collect::<Vec<_>>();
 
+        let transaction_updates: Vec<_> = transaction_updates
+            .committed_transactions()
+            .chain(transaction_updates.discarded_transactions())
+            .map(serialize_transaction_record)
+            .collect();
+
         // Remove the account states that are originated from the discarded transactions
         self.undo_account_states(&account_states_to_rollback).await?;
 
@@ -223,7 +218,7 @@ impl WebStore {
         // 1. Add Note Updates Here
         // 2. Process transaction updates + transaction updates discarded
         // 3. Process account_updates.updated_public_accounts
-        // 4. Lock mismatced private accounts
+        // 4. Lock mismatched private accounts
         // 5. Undo account states
         let state_update = JsStateSyncUpdate {
             block_num: block_num.to_string(),
@@ -233,9 +228,15 @@ impl WebStore {
             block_has_relevant_notes,
             serialized_node_ids,
             serialized_nodes,
-            note_tags_to_remove_as_str,
+            note_tags_to_remove: note_tags_to_remove_as_str,
             serialized_input_notes,
             serialized_output_notes,
+            account_updates: account_updates
+                .updated_public_accounts()
+                .into_iter()
+                .map(JsAccountUpdate::from_account)
+                .collect(),
+            transaction_updates,
         };
         let promise = idxdb_apply_state_sync(state_update);
         JsFuture::from(promise).await.map_err(|js_error| {
