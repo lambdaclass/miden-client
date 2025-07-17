@@ -80,21 +80,23 @@ export async function removeNoteTag(tag, sourceNoteId, sourceAccountId) {
 
 export async function receiveStateSync(stateSync) {}
 
-export async function applyStateSync(
-  blockNum,
-  newBlockHeadersAsFlattenedVec,
-  newBlockNums,
-  partialBlockchainPeaksAsFlattenedVec,
-  hasClientNotes,
-  nodeIndexes,
-  nodes,
-  inputNoteIds
-) {
-  const newBlockHeaders = reconstructFlattenedVec(
-    newBlockHeadersAsFlattenedVec
-  );
+export async function applyStateSync(stateUpdate) {
+  const {
+    blockNum,
+    flattenedNewBlockHeaders,
+    newBlockNums,
+    blockHashRelevantNotes,
+    serializedNodeIds,
+    serializedNodes,
+    noteTagsToRemove,
+    serializedInputNotes,
+    serializedOutputNotes,
+    accountUpdates,
+    transactionUpdates,
+  } = stateUpdate;
+  const newBlockHeaders = reconstructFlattenedVec(flattenedNewBlockHeaders);
   const partialBlockchainPeaks = reconstructFlattenedVec(
-    partialBlockchainPeaksAsFlattenedVec
+    flattenedPartialBlockchainPeaks
   );
 
   return await db.transaction(
