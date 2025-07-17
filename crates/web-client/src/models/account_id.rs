@@ -50,10 +50,10 @@ impl AccountId {
     pub fn to_bech32(&self, network_id: &str) -> Result<String, String> {
         match NetworkId::from_str(network_id) {
             Ok(NetworkId::Custom(_)) => {
-                Err("Expected network id for either mainnet, testnet or devnet".to_owned())
+                Err("expected network id for either mainnet, testnet or devnet".to_owned())
             },
             Ok(net_id) => Ok(self.0.to_bech32(net_id)),
-            Err(err) => Err(format!("Given network id is not valid: {err}")),
+            Err(err) => Err(format!("given network id is not valid: {err}")),
         }
     }
 
@@ -62,10 +62,10 @@ impl AccountId {
     #[wasm_bindgen(js_name = "toBech32Custom")]
     pub fn to_bech32_custom(&self, network_id: &str) -> Result<String, String> {
         let network_id = NetworkId::from_str(network_id)
-            .map_err(|err| format!("Given network id is not valid: {err}"))?;
+            .map_err(|err| format!("given network id is not valid: {err}"))?;
         match network_id {
             NetworkId::Custom(_) => Ok(self.0.to_bech32(network_id)),
-            _ => Err("Expected a custom network id".to_owned()),
+            _ => Err("expected a custom network id".to_owned()),
         }
     }
 
