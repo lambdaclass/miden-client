@@ -175,12 +175,7 @@ impl WebStore {
             .filter_map(|note_update| {
                 let note = note_update.inner();
                 if note.is_committed() {
-                    Some(
-                        note.metadata()
-                            .expect("Committed notes should have metadata")
-                            .tag()
-                            .to_string(),
-                    )
+                    Some(note.id().to_string())
                 } else {
                     None
                 }
@@ -200,19 +195,20 @@ impl WebStore {
             )?;
         }
 
+        // FIXME: Consider adding this to apply_state_sync
         let account_states_to_rollback = transaction_updates
             .discarded_transactions()
             .map(|tx_record| tx_record.details.final_account_state)
             .collect::<Vec<_>>();
+
+        // Remove the account states that are originated from the discarded transactions
+        self.undo_account_states(&account_states_to_rollback).await?;
 
         let transaction_updates: Vec<_> = transaction_updates
             .committed_transactions()
             .chain(transaction_updates.discarded_transactions())
             .map(serialize_transaction_record)
             .collect();
-
-        // Remove the account states that are originated from the discarded transactions
-        self.undo_account_states(&account_states_to_rollback).await?;
 
         // FIXME:
         // 1. Add Note Updates Here
