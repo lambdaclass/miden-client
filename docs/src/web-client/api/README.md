@@ -10,6 +10,7 @@
 - [InputNoteState](enumerations/InputNoteState.md)
 - [NoteFilterTypes](enumerations/NoteFilterTypes.md)
 - [NoteType](enumerations/NoteType.md)
+- [WellKnownNote](enumerations/WellKnownNote.md)
 
 ## Classes
 

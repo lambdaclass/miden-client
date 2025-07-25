@@ -155,3 +155,47 @@
 #### Returns
 
 `Note`
+
+***
+
+### createWellKnownNote()
+
+> `static` **createWellKnownNote**(`sender`, `target`, `assets`, `note_type`, `serial_num`, `recall_height`, `aux`, `well_known_type`): `Note`
+
+#### Parameters
+
+##### sender
+
+[`AccountId`](AccountId.md)
+
+##### target
+
+[`AccountId`](AccountId.md)
+
+##### assets
+
+[`NoteAssets`](NoteAssets.md)
+
+##### note\_type
+
+[`NoteType`](../enumerations/NoteType.md)
+
+##### serial\_num
+
+[`Word`](Word.md)
+
+##### recall\_height
+
+`number`
+
+##### aux
+
+[`Felt`](Felt.md)
+
+##### well\_known\_type
+
+[`WellKnownNote`](../enumerations/WellKnownNote.md)
+
+#### Returns
+
+`Note`
