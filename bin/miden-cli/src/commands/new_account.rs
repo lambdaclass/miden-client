@@ -122,6 +122,7 @@ impl NewWalletCmd {
             &component_template_paths,
             self.init_storage_data_path.clone(),
             self.deploy,
+            &Vec::new(),
         )
         .await?;
 
@@ -165,6 +166,9 @@ pub struct NewAccountCmd {
     /// present in the init storage data file.
     #[arg(short, long)]
     pub init_storage_data_path: Option<PathBuf>,
+    #[arg(short, long)]
+    /// Path to a `.masp` file created by the compiler.
+    pub package: PathBuf,
     /// If set, the newly created account will be deployed to the network by submitting an
     /// authentication transaction.
     #[arg(long, default_value_t = false)]
@@ -181,6 +185,7 @@ impl NewAccountCmd {
             &self.component_templates,
             self.init_storage_data_path.clone(),
             self.deploy,
+            &vec![self.packages.clone()],
         )
         .await?;
 
@@ -231,7 +236,7 @@ fn generate_component_template_from_packages(paths: &[PathBuf]) -> Vec<AccountCo
         let bytes = fs::read(path).unwrap();
 
         let package = miden_mast_package::Package::read_from_bytes(&bytes).unwrap();
-        let account_component = match package.account_component_metadata_bytes.as_deref() {
+        match package.account_component_metadata_bytes.as_deref() {
             None => panic!("E"),
             Some(bytes) => {
                 let metadata = AccountComponentMetadata::read_from_bytes(bytes).unwrap();
@@ -243,7 +248,7 @@ fn generate_component_template_from_packages(paths: &[PathBuf]) -> Vec<AccountCo
         };
     }
 
-    return templates;
+    return dbg!(templates);
 }
 /// Loads the initialization storage data from an optional TOML file.
 /// If None is passed, an empty object is returned.
@@ -272,17 +277,23 @@ async fn create_client_account(
     deploy: bool,
     packages: &[PathBuf],
 ) -> Result<Account, CliError> {
+    let mut templates = generate_component_template_from_packages(packages);
+
     if component_template_paths.is_empty() {
-        return Err(CliError::InvalidArgument(
-            "account must contain at least one component".into(),
-        ));
+        if templates.is_empty() {
+            return Err(CliError::InvalidArgument(
+                "account must contain at least one component".into(),
+            ));
+        } else {
+            debug!("Loading component templates...");
+            let component_templates = load_component_templates(component_template_paths)?;
+            templates.extend(component_templates.clone());
+            debug!("Loaded {} component templates", component_templates.len());
+            debug!("Loading initialization storage data...");
+        }
     }
 
     // Load the component templates and initialization storage data.
-    debug!("Loading component templates...");
-    let component_templates = load_component_templates(component_template_paths)?;
-    debug!("Loaded {} component templates", component_templates.len());
-    debug!("Loading initialization storage data...");
     let init_storage_data = load_init_storage_data(init_storage_data_path)?;
     debug!("Loaded initialization storage data");
 
@@ -297,7 +308,7 @@ async fn create_client_account(
         .with_auth_component(RpoFalcon512::new(key_pair.public_key()));
 
     // Process component templates and add them to the account builder.
-    let account_components = process_component_templates(&component_templates, &init_storage_data)?;
+    let account_components = process_component_templates(&templates, &init_storage_data)?;
     for component in account_components {
         builder = builder.with_component(component);
     }
