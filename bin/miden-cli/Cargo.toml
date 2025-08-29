@@ -26,6 +26,7 @@ miden-client = { features = ["sqlite", "tonic"], path = "../../crates/rust-clien
 # Miden dependencies
 miden-lib     = { workspace = true }
 miden-objects = { workspace = true }
+miden-mast-package = { version = "0.15" }
 
 # External dependencies
 clap               = { features = ["derive"], version = "4.5" }

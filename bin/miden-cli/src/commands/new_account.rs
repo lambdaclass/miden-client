@@ -8,15 +8,16 @@ use std::{
 
 use clap::{Parser, ValueEnum};
 use miden_client::{
-    Client,
     account::{
-        Account, AccountBuilder, AccountStorageMode, AccountType,
-        component::COMPONENT_TEMPLATE_EXTENSION,
+        component::COMPONENT_TEMPLATE_EXTENSION, Account, AccountBuilder, AccountStorageMode,
+        AccountType,
     },
     auth::AuthSecretKey,
     crypto::SecretKey,
     transaction::TransactionRequestBuilder,
     utils::Deserializable,
+    utils::Serializable,
+    Client,
 };
 use miden_lib::account::auth::RpoFalcon512;
 use miden_objects::account::{
@@ -26,9 +27,10 @@ use rand::RngCore;
 use tracing::debug;
 
 use crate::{
-    CLIENT_BINARY_NAME, CliKeyStore, commands::account::maybe_set_default_account,
-    errors::CliError, utils::load_config_file,
+    commands::account::maybe_set_default_account, errors::CliError, utils::load_config_file,
+    CliKeyStore, CLIENT_BINARY_NAME,
 };
+use miden_objects::account::AccountComponentMetadata;
 
 // CLI TYPES
 // ================================================================================================
@@ -223,6 +225,26 @@ fn load_component_templates(paths: &[PathBuf]) -> Result<Vec<AccountComponentTem
     Ok(templates)
 }
 
+fn generate_component_template_from_packages(paths: &[PathBuf]) -> Vec<AccountComponentTemplate> {
+    let mut templates = Vec::new();
+    for path in paths {
+        let bytes = fs::read(path).unwrap();
+
+        let package = miden_mast_package::Package::read_from_bytes(&bytes).unwrap();
+        let account_component = match package.account_component_metadata_bytes.as_deref() {
+            None => panic!("E"),
+            Some(bytes) => {
+                let metadata = AccountComponentMetadata::read_from_bytes(bytes).unwrap();
+
+                let library = package.unwrap_library().as_ref().clone();
+                let template = AccountComponentTemplate::new(metadata, library);
+                templates.push(template);
+            },
+        };
+    }
+
+    return templates;
+}
 /// Loads the initialization storage data from an optional TOML file.
 /// If None is passed, an empty object is returned.
 fn load_init_storage_data(path: Option<PathBuf>) -> Result<InitStorageData, CliError> {
@@ -248,6 +270,7 @@ async fn create_client_account(
     component_template_paths: &[PathBuf],
     init_storage_data_path: Option<PathBuf>,
     deploy: bool,
+    packages: &[PathBuf],
 ) -> Result<Account, CliError> {
     if component_template_paths.is_empty() {
         return Err(CliError::InvalidArgument(
