@@ -6,7 +6,7 @@ use std::vec;
 
 use clap::{Parser, ValueEnum};
 use miden_client::Client;
-use miden_client::account::component::COMPONENT_TEMPLATE_EXTENSION;
+use miden_client::account::component::{COMPONENT_TEMPLATE_EXTENSION, MIDEN_PACKAGE_EXTENSION};
 use miden_client::account::{Account, AccountBuilder, AccountStorageMode, AccountType};
 use miden_client::auth::{AuthSecretKey, TransactionAuthenticator};
 use miden_client::crypto::SecretKey;
@@ -153,8 +153,8 @@ pub struct NewAccountCmd {
     /// Account type to create.
     #[arg(long, value_enum)]
     pub account_type: CliAccountType,
-    /// Optional list of files specifying additional component template files to add to the
-    /// account.
+    /// List of files specifying component template files for the account. At
+    /// lease one component template is required.
     #[arg(short, long)]
     pub component_templates: Vec<PathBuf>,
     /// Optional file path to a TOML file containing a list of key/values used for initializing
@@ -206,14 +206,30 @@ fn load_component_templates(paths: &[PathBuf]) -> Result<Vec<AccountComponentTem
     let (cli_config, _) = load_config_file()?;
     let components_base_dir = &cli_config.component_template_directory;
     let mut templates = Vec::new();
+
+    let possible_extensions = [COMPONENT_TEMPLATE_EXTENSION, MIDEN_PACKAGE_EXTENSION];
     for path in paths {
-        // Set extension to COMPONENT_TEMPLATE_EXTENSION in case user did not
-        let path = if path.extension().is_none() {
-            path.with_extension(COMPONENT_TEMPLATE_EXTENSION)
-        } else {
-            path.clone()
-        };
-        let bytes = fs::read(components_base_dir.join(path))?;
+        // If the user did not specify an extension, we check which extension
+        // corresponds to the given file. Extension priority is determined by
+        // the order in which they appear in the possible_extensions array.
+        let possible_files =
+            possible_extensions.iter().map(|extension| path.with_extension(extension));
+
+        let found_file = possible_files.clone().find(|path| path.exists()).ok_or({
+            let looked_files =
+                possible_files.map(|file| format!("- {}\n", file.display())).collect::<String>();
+
+            CliError::AccountComponentError(
+                Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "File not found")),
+                format!(
+                    "failed to find {}. None of these files were found:
+{looked_files}",
+                    path.display()
+                ),
+            )
+        })?;
+
+        let bytes = fs::read(components_base_dir.join(found_file))?;
         let template = AccountComponentTemplate::read_from_bytes(&bytes).map_err(|e| {
             CliError::AccountComponentError(
                 Box::new(e),
