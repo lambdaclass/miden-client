@@ -5,26 +5,24 @@ use std::path::PathBuf;
 use std::vec;
 
 use clap::{Parser, ValueEnum};
-use miden_client::Client;
 use miden_client::account::component::{COMPONENT_TEMPLATE_EXTENSION, MIDEN_PACKAGE_EXTENSION};
 use miden_client::account::{Account, AccountBuilder, AccountStorageMode, AccountType};
 use miden_client::auth::{AuthSecretKey, TransactionAuthenticator};
 use miden_client::crypto::SecretKey;
 use miden_client::transaction::TransactionRequestBuilder;
 use miden_client::utils::Deserializable;
+use miden_client::Client;
 use miden_lib::account::auth::AuthRpoFalcon512;
 use miden_objects::account::{
-    AccountComponent,
-    AccountComponentTemplate,
-    InitStorageData,
-    StorageValueName,
+    AccountComponent, AccountComponentTemplate, InitStorageData, StorageValueName,
 };
+use miden_objects::vm::Package;
 use rand::RngCore;
 use tracing::debug;
 
 use crate::commands::account::maybe_set_default_account;
 use crate::errors::CliError;
-use crate::{CliKeyStore, client_binary_name, load_config_file};
+use crate::{client_binary_name, load_config_file, CliKeyStore};
 
 // CLI TYPES
 // ================================================================================================
@@ -205,6 +203,7 @@ impl NewAccountCmd {
 fn load_component_templates(paths: &[PathBuf]) -> Result<Vec<AccountComponentTemplate>, CliError> {
     let (cli_config, _) = load_config_file()?;
     let components_base_dir = &cli_config.component_template_directory;
+    let packages_dir = &cli_config.package_directory;
     let mut templates = Vec::new();
 
     let possible_extensions = [COMPONENT_TEMPLATE_EXTENSION, MIDEN_PACKAGE_EXTENSION];
@@ -229,13 +228,54 @@ fn load_component_templates(paths: &[PathBuf]) -> Result<Vec<AccountComponentTem
             )
         })?;
 
-        let bytes = fs::read(components_base_dir.join(found_file))?;
-        let template = AccountComponentTemplate::read_from_bytes(&bytes).map_err(|e| {
-            CliError::AccountComponentError(
-                Box::new(e),
-                "failed to read account component template".into(),
-            )
-        })?;
+        std::dbg!("A PUNTO DE LEER");
+        std::dbg!("DONE");
+        let template = match found_file.extension().and_then(|ext| ext.to_str()) {
+            Some(COMPONENT_TEMPLATE_EXTENSION) => {
+                let bytes = fs::read(components_base_dir.join(&found_file))?;
+                AccountComponentTemplate::read_from_bytes(&bytes).map_err(|e| {
+                    CliError::AccountComponentError(
+                        Box::new(e),
+                        format!(
+                            "failed to read account component template from {}",
+                            found_file.display()
+                        ),
+                    )
+                })?
+            },
+            Some(MIDEN_PACKAGE_EXTENSION) => {
+                let bytes = fs::read(packages_dir.join(&found_file))?;
+                let package = Package::read_from_bytes(&bytes).map_err(|e| {
+                    CliError::AccountComponentError(
+                        Box::new(e),
+                        format!(
+                            "failed to read account component template from Package in {}",
+                            found_file.display()
+                        ),
+                    )
+                })?;
+
+                AccountComponentTemplate::try_from(package).map_err(|e| {
+                    CliError::AccountComponentError(
+                        Box::new(e),
+                        format!(
+                            "failed to read account component template from Package in {}",
+                            found_file.display()
+                        ),
+                    )
+                })?
+            },
+            Some(unknown_extension) => {
+                todo!();
+                // let a = 1;
+                // Err(CliError::AccountComponentError((), format!()))
+            },
+            None => {
+                // This case should never occur
+                todo!();
+            },
+        };
+
         templates.push(template);
     }
     Ok(templates)

@@ -12,6 +12,7 @@ use crate::errors::CliError;
 
 const TOKEN_SYMBOL_MAP_FILEPATH: &str = "token_symbol_map.toml";
 const DEFAULT_COMPONENT_TEMPLATE_DIR: &str = "./templates";
+const DEFAULT_PACKAGES_DIR: &str = "./packages";
 
 // CLI CONFIG
 // ================================================================================================
