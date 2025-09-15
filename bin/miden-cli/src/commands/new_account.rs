@@ -116,6 +116,7 @@ impl NewWalletCmd {
             account_type,
             self.storage_mode.into(),
             &component_template_paths,
+            &[],
             self.init_storage_data_path.clone(),
             self.deploy,
         )
@@ -155,6 +156,10 @@ pub struct NewAccountCmd {
     /// lease one component template is required.
     #[arg(short, long)]
     pub component_templates: Vec<PathBuf>,
+    /// List of [[miden_core::vm::Package]]s from where a component template is going to be extracted.
+    /// lease one component template is required.
+    #[arg(short, long)]
+    pub packages: Vec<PathBuf>,
     /// Optional file path to a TOML file containing a list of key/values used for initializing
     /// storage. Each of these keys should map to the templated storage values within the passed
     /// list of component templates. The user will be prompted to provide values for any keys not
@@ -179,6 +184,7 @@ impl NewAccountCmd {
             self.account_type.into(),
             self.storage_mode.into(),
             &self.component_templates,
+            &self.packages,
             self.init_storage_data_path.clone(),
             self.deploy,
         )
@@ -198,86 +204,74 @@ impl NewAccountCmd {
 // HELPERS
 // ================================================================================================
 
+type ComponentPath = PathBuf;
+type PackagePath = PathBuf;
 /// Reads component templates from the given file paths.
 // TODO: IO errors should have more context
-fn load_component_templates(paths: &[PathBuf]) -> Result<Vec<AccountComponentTemplate>, CliError> {
+fn load_component_templates(
+    component_paths: &[ComponentPath],
+    package_paths: &[PackagePath],
+) -> Result<Vec<AccountComponentTemplate>, CliError> {
     let (cli_config, _) = load_config_file()?;
     let components_base_dir = &cli_config.component_template_directory;
     let packages_dir = &cli_config.package_directory;
     let mut templates = Vec::new();
 
     let possible_extensions = [COMPONENT_TEMPLATE_EXTENSION, MIDEN_PACKAGE_EXTENSION];
-    for path in paths {
-        // If the user did not specify an extension, we check which extension
-        // corresponds to the given file. Extension priority is determined by
-        // the order in which they appear in the possible_extensions array.
-        let possible_files =
-            possible_extensions.iter().map(|extension| path.with_extension(extension));
+    for path in component_paths {
+        let path = if path.extension().is_none() {
+            path.with_extension(COMPONENT_TEMPLATE_EXTENSION)
+        } else {
+            path.clone()
+        };
 
-        let found_file = possible_files.clone().find(|path| path.exists()).ok_or({
-            let looked_files =
-                possible_files.map(|file| format!("- {}\n", file.display())).collect::<String>();
-
+        let bytes = fs::read(components_base_dir.join(&path)).map_err(|e| {
             CliError::AccountComponentError(
-                Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "File not found")),
+                Box::new(e),
+                format!("failed to read account component template from {}", path.display()),
+            )
+        })?;
+        let template = AccountComponentTemplate::read_from_bytes(&bytes).map_err(|e| {
+            CliError::AccountComponentError(
+                Box::new(e),
+                format!("failed to deserialize account component template from {}", path.display()),
+            )
+        })?;
+        templates.push(template);
+    }
+    for path in package_paths {
+        let path = if path.extension().is_none() {
+            path.with_extension(MIDEN_PACKAGE_EXTENSION)
+        } else {
+            path.clone()
+        };
+
+        let bytes = fs::read(packages_dir.join(&path)).map_err(|e| {
+            CliError::AccountComponentError(
+                Box::new(e),
+                format!("failed to read Package from {}", path.display()),
+            )
+        })?;
+
+        let package = Package::read_from_bytes(&bytes).map_err(|e| {
+            CliError::AccountComponentError(
+                Box::new(e),
+                format!("failed to deserialize Package in {}", path.display()),
+            )
+        })?;
+
+        let template = AccountComponentTemplate::try_from(package).map_err(|e| {
+            CliError::AccountComponentError(
+                Box::new(e),
                 format!(
-                    "failed to find {}. None of these files were found:
-{looked_files}",
+                    "failed to read account component template from Package in {}",
                     path.display()
                 ),
             )
         })?;
-
-        std::dbg!("A PUNTO DE LEER");
-        std::dbg!("DONE");
-        let template = match found_file.extension().and_then(|ext| ext.to_str()) {
-            Some(COMPONENT_TEMPLATE_EXTENSION) => {
-                let bytes = fs::read(components_base_dir.join(&found_file))?;
-                AccountComponentTemplate::read_from_bytes(&bytes).map_err(|e| {
-                    CliError::AccountComponentError(
-                        Box::new(e),
-                        format!(
-                            "failed to read account component template from {}",
-                            found_file.display()
-                        ),
-                    )
-                })?
-            },
-            Some(MIDEN_PACKAGE_EXTENSION) => {
-                let bytes = fs::read(packages_dir.join(&found_file))?;
-                let package = Package::read_from_bytes(&bytes).map_err(|e| {
-                    CliError::AccountComponentError(
-                        Box::new(e),
-                        format!(
-                            "failed to read account component template from Package in {}",
-                            found_file.display()
-                        ),
-                    )
-                })?;
-
-                AccountComponentTemplate::try_from(package).map_err(|e| {
-                    CliError::AccountComponentError(
-                        Box::new(e),
-                        format!(
-                            "failed to read account component template from Package in {}",
-                            found_file.display()
-                        ),
-                    )
-                })?
-            },
-            Some(unknown_extension) => {
-                todo!();
-                // let a = 1;
-                // Err(CliError::AccountComponentError((), format!()))
-            },
-            None => {
-                // This case should never occur
-                todo!();
-            },
-        };
-
         templates.push(template);
     }
+
     Ok(templates)
 }
 
@@ -304,10 +298,11 @@ async fn create_client_account<AUTH: TransactionAuthenticator + Sync + 'static>(
     account_type: AccountType,
     storage_mode: AccountStorageMode,
     component_template_paths: &[PathBuf],
+    package_paths: &[PathBuf],
     init_storage_data_path: Option<PathBuf>,
     deploy: bool,
 ) -> Result<Account, CliError> {
-    if component_template_paths.is_empty() {
+    if component_template_paths.is_empty() && package_paths.is_empty() {
         return Err(CliError::InvalidArgument(
             "account must contain at least one component".into(),
         ));
@@ -315,7 +310,7 @@ async fn create_client_account<AUTH: TransactionAuthenticator + Sync + 'static>(
 
     // Load the component templates and initialization storage data.
     debug!("Loading component templates...");
-    let component_templates = load_component_templates(component_template_paths)?;
+    let component_templates = load_component_templates(component_template_paths, package_paths)?;
     debug!("Loaded {} component templates", component_templates.len());
     debug!("Loading initialization storage data...");
     let init_storage_data = load_init_storage_data(init_storage_data_path)?;
