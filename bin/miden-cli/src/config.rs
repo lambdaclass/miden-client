@@ -33,7 +33,7 @@ pub struct CliConfig {
     pub remote_prover_endpoint: Option<CliEndpoint>,
     /// Path to the directory from where account component template files will be loaded.
     pub component_template_directory: PathBuf,
-    /// Path to the directory from where [[miden_core::vm::Package]]s will be loaded.
+    /// Path to the directory from where [[`miden_core::vm::Package`]]s will be loaded.
     pub package_directory: PathBuf,
     /// Maximum number of blocks the client can be behind the network for transactions and account
     /// proofs to be considered valid.
