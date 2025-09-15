@@ -12,6 +12,7 @@
 * Bumped web-client version in package.json after merging main into next.
 * Added support for getting specific vault and storage elements from `Store` along with their proofs ([#1164](https://github.com/0xMiden/miden-client/pull/1164)).
 * Modified the RPC client to avoid reconnection when setting commitment header ([#1166](https://github.com/0xMiden/miden-client/pull/1166)).
+* Added account creation from miden packages (#TBD).
 
 ## 0.11.3 (2025-09-08)
 
