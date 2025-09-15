@@ -156,8 +156,8 @@ pub struct NewAccountCmd {
     /// lease one component template is required.
     #[arg(short, long)]
     pub component_templates: Vec<PathBuf>,
-    /// List of [[miden_core::vm::Package]]s from where a component template is going to be extracted.
-    /// lease one component template is required.
+    /// List of files containing a Miden Package in `.masp` form from which a
+    /// component template is extracted.
     #[arg(short, long)]
     pub packages: Vec<PathBuf>,
     /// Optional file path to a TOML file containing a list of key/values used for initializing
@@ -207,46 +207,53 @@ impl NewAccountCmd {
 type ComponentPath = PathBuf;
 type PackagePath = PathBuf;
 /// Reads component templates from the given file paths.
-// TODO: IO errors should have more context
 fn load_component_templates(
     component_paths: &[ComponentPath],
     package_paths: &[PackagePath],
 ) -> Result<Vec<AccountComponentTemplate>, CliError> {
     let (cli_config, _) = load_config_file()?;
-    let components_base_dir = &cli_config.component_template_directory;
-    let packages_dir = &cli_config.package_directory;
     let mut templates = Vec::new();
 
-    let possible_extensions = [COMPONENT_TEMPLATE_EXTENSION, MIDEN_PACKAGE_EXTENSION];
+    let components_base_dir = &cli_config.component_template_directory;
     for path in component_paths {
         let path = if path.extension().is_none() {
             path.with_extension(COMPONENT_TEMPLATE_EXTENSION)
         } else {
             path.clone()
         };
+        let path = components_base_dir.join(&path);
 
-        let bytes = fs::read(components_base_dir.join(&path)).map_err(|e| {
+        let bytes = fs::read(&path).map_err(|e| {
             CliError::AccountComponentError(
                 Box::new(e),
                 format!("failed to read account component template from {}", path.display()),
             )
         })?;
+
         let template = AccountComponentTemplate::read_from_bytes(&bytes).map_err(|e| {
             CliError::AccountComponentError(
                 Box::new(e),
                 format!("failed to deserialize account component template from {}", path.display()),
             )
         })?;
+
         templates.push(template);
     }
+
+    let packages_dir = &cli_config.package_directory;
     for path in package_paths {
+        // If a user passes in a file with the `.masp` file extension, then we
+        // leave the passed in path as is; since it probably is a full path.
+        // This is the case with cargo-miden, which displays the full path to
+        // stdout after compilation finishes.
         let path = if path.extension().is_none() {
-            path.with_extension(MIDEN_PACKAGE_EXTENSION)
+            let path = path.with_extension(MIDEN_PACKAGE_EXTENSION);
+            packages_dir.join(&path)
         } else {
             path.clone()
         };
 
-        let bytes = fs::read(packages_dir.join(&path)).map_err(|e| {
+        let bytes = fs::read(&path).map_err(|e| {
             CliError::AccountComponentError(
                 Box::new(e),
                 format!("failed to read Package from {}", path.display()),
@@ -269,6 +276,7 @@ fn load_component_templates(
                 ),
             )
         })?;
+
         templates.push(template);
     }
 
