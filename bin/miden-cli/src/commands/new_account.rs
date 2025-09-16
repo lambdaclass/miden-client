@@ -209,7 +209,7 @@ impl NewAccountCmd {
 
 type ComponentPath = PathBuf;
 type PackagePath = PathBuf;
-/// Reads component templates from the given file paths.
+/// Reads component templates and [[miden_core::vm::Package]]s from the given file paths.
 fn load_component_templates(
     component_paths: &[ComponentPath],
     package_paths: &[PackagePath],
