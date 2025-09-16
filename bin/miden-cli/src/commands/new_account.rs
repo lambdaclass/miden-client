@@ -86,6 +86,10 @@ pub struct NewWalletCmd {
     /// Optional list of files specifying additional components to add to the account.
     #[arg(short, long)]
     pub extra_components: Vec<PathBuf>,
+    /// Optional list of files containing a Miden Package in `.masp` form from which a
+    /// component template can be extracted.
+    #[arg(short, long)]
+    pub packages: Vec<PathBuf>,
     /// Optional file path to a TOML file containing a list of key/values used for initializing
     /// storage. Each of these keys should map to the templated storage values within the passed
     /// list of component templates. The user will be prompted to provide values for any keys not
@@ -120,7 +124,7 @@ impl NewWalletCmd {
             account_type,
             self.storage_mode.into(),
             &component_template_paths,
-            &[],
+            &self.packages,
             self.init_storage_data_path.clone(),
             self.deploy,
         )
@@ -156,11 +160,13 @@ pub struct NewAccountCmd {
     /// Account type to create.
     #[arg(long, value_enum)]
     pub account_type: CliAccountType,
-    /// List of files specifying component template files for the account. At
-    /// least one component template is required.
+    /// List of files specifying component template files for the account.
+    /// At least one component template is required, either specified by
+    /// [[NewAccountCmd::component_templates]] or by [[NewAccountCmd::packages]].
     #[arg(short, long)]
     pub component_templates: Vec<PathBuf>,
     /// List of files containing a Miden Package in `.masp` form from which a
+
     /// component template is extracted.
     #[arg(short, long)]
     pub packages: Vec<PathBuf>,
