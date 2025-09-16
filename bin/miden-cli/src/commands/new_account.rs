@@ -219,12 +219,26 @@ fn load_component_templates(
 
     let components_base_dir = &cli_config.component_template_directory;
     for path in component_paths {
-        let path = if path.extension().is_none() {
-            path.with_extension(COMPONENT_TEMPLATE_EXTENSION)
-        } else {
-            path.clone()
-        };
-        let path = components_base_dir.join(&path);
+        let file_name = match path.extension() {
+            None => Ok(path.with_extension(COMPONENT_TEMPLATE_EXTENSION)),
+            Some(extension) => {
+                if extension != OsStr::new(COMPONENT_TEMPLATE_EXTENSION) {
+                    Err(CliError::AccountComponentError(
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidFilename,
+                            format!("{} has an invalid file extension: {}. Expected: {COMPONENT_TEMPLATE_EXTENSION}", path.display(), extension.display()),
+                        )),
+                        format!(
+                            "failed to read account component template from {}",
+                            path.display()
+                        ),
+                    ))
+                } else {
+                    Ok(path.clone())
+                }
+            },
+        }?;
+        let path = components_base_dir.join(&file_name);
 
         let bytes = fs::read(&path).map_err(|e| {
             CliError::AccountComponentError(
@@ -249,12 +263,28 @@ fn load_component_templates(
         // leave the passed in path as is; since it probably is a full path.
         // This is the case with cargo-miden, which displays the full path to
         // stdout after compilation finishes.
-        let path = if path.extension().is_none() {
-            let path = path.with_extension(MIDEN_PACKAGE_EXTENSION);
-            packages_dir.join(&path)
-        } else {
-            path.clone()
-        };
+        let file_name = match path.extension() {
+            None => {
+                let path = path.with_extension(MIDEN_PACKAGE_EXTENSION);
+                Ok(packages_dir.join(path))
+            },
+            Some(extension) => {
+                if extension != OsStr::new(MIDEN_PACKAGE_EXTENSION) {
+                    Err(CliError::AccountComponentError(
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidFilename,
+                            format!("{} has an invalid file extension: {}. Expected: {MIDEN_PACKAGE_EXTENSION}", path.display(), extension.display()),
+                        )),
+                        format!(
+                            "failed to read Package from {}",
+                            path.display()
+                        ),
+                    ))
+                } else {
+                    Ok(path.clone())
+                }
+            },
+        }?;
 
         let bytes = fs::read(&path).map_err(|e| {
             CliError::AccountComponentError(
