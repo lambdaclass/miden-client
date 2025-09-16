@@ -162,11 +162,10 @@ pub struct NewAccountCmd {
     pub account_type: CliAccountType,
     /// List of files specifying component template files for the account.
     /// At least one component template is required, either specified by
-    /// [[NewAccountCmd::component_templates]] or by [[NewAccountCmd::packages]].
+    /// [[`NewAccountCmd::component_templates`]] or by [[`NewAccountCmd::packages`]].
     #[arg(short, long)]
     pub component_templates: Vec<PathBuf>,
     /// List of files containing a Miden Package in `.masp` form from which a
-
     /// component template is extracted.
     #[arg(short, long)]
     pub packages: Vec<PathBuf>,
