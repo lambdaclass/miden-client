@@ -220,14 +220,24 @@ fn load_component_templates(
     let components_base_dir = &cli_config.component_template_directory;
     for path in component_paths {
         let file_name = match path.extension() {
-            None => Ok(path.with_extension(COMPONENT_TEMPLATE_EXTENSION)),
+            None => {
+                // Set extension to COMPONENT_TEMPLATE_EXTENSION in case user
+                // did not
+                Ok(path.with_extension(COMPONENT_TEMPLATE_EXTENSION))
+            },
             Some(extension) => {
                 if extension != OsStr::new(COMPONENT_TEMPLATE_EXTENSION) {
+                    let error = std::io::Error::new(
+                        std::io::ErrorKind::InvalidFilename,
+                        format!(
+                            "{} has an invalid file extension: '{}'. \
+                            Expected: {COMPONENT_TEMPLATE_EXTENSION}",
+                            path.display(),
+                            extension.display()
+                        ),
+                    );
                     Err(CliError::AccountComponentError(
-                        Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidFilename,
-                            format!("{} has an invalid file extension: {}. Expected: {COMPONENT_TEMPLATE_EXTENSION}", path.display(), extension.display()),
-                        )),
+                        Box::new(error),
                         format!(
                             "failed to read account component template from {}",
                             path.display()
@@ -270,15 +280,18 @@ fn load_component_templates(
             },
             Some(extension) => {
                 if extension != OsStr::new(MIDEN_PACKAGE_EXTENSION) {
-                    Err(CliError::AccountComponentError(
-                        Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidFilename,
-                            format!("{} has an invalid file extension: {}. Expected: {MIDEN_PACKAGE_EXTENSION}", path.display(), extension.display()),
-                        )),
+                    let error = std::io::Error::new(
+                        std::io::ErrorKind::InvalidFilename,
                         format!(
-                            "failed to read Package from {}",
-                            path.display()
+                            "{} has an invalid file extension: '{}'. \
+                            Expected: {MIDEN_PACKAGE_EXTENSION}",
+                            path.display(),
+                            extension.display()
                         ),
+                    );
+                    Err(CliError::AccountComponentError(
+                        Box::new(error),
+                        format!("failed to read Package from {}", path.display()),
                     ))
                 } else {
                     Ok(path.clone())
