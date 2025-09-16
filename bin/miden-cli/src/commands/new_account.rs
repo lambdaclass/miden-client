@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -209,7 +210,7 @@ impl NewAccountCmd {
 
 type ComponentPath = PathBuf;
 type PackagePath = PathBuf;
-/// Reads component templates and [[miden_core::vm::Package]]s from the given file paths.
+/// Reads component templates and [[`miden_core::vm::Package`]]s from the given file paths.
 fn load_component_templates(
     component_paths: &[ComponentPath],
     package_paths: &[PackagePath],
@@ -226,7 +227,9 @@ fn load_component_templates(
                 Ok(path.with_extension(COMPONENT_TEMPLATE_EXTENSION))
             },
             Some(extension) => {
-                if extension != OsStr::new(COMPONENT_TEMPLATE_EXTENSION) {
+                if extension == OsStr::new(COMPONENT_TEMPLATE_EXTENSION) {
+                    Ok(path.clone())
+                } else {
                     let error = std::io::Error::new(
                         std::io::ErrorKind::InvalidFilename,
                         format!(
@@ -243,8 +246,6 @@ fn load_component_templates(
                             path.display()
                         ),
                     ))
-                } else {
-                    Ok(path.clone())
                 }
             },
         }?;
@@ -273,13 +274,15 @@ fn load_component_templates(
         // leave the passed in path as is; since it probably is a full path.
         // This is the case with cargo-miden, which displays the full path to
         // stdout after compilation finishes.
-        let file_name = match path.extension() {
+        let path = match path.extension() {
             None => {
                 let path = path.with_extension(MIDEN_PACKAGE_EXTENSION);
                 Ok(packages_dir.join(path))
             },
             Some(extension) => {
-                if extension != OsStr::new(MIDEN_PACKAGE_EXTENSION) {
+                if extension == OsStr::new(MIDEN_PACKAGE_EXTENSION) {
+                    Ok(path.clone())
+                } else {
                     let error = std::io::Error::new(
                         std::io::ErrorKind::InvalidFilename,
                         format!(
@@ -293,8 +296,6 @@ fn load_component_templates(
                         Box::new(error),
                         format!("failed to read Package from {}", path.display()),
                     ))
-                } else {
-                    Ok(path.clone())
                 }
             },
         }?;
