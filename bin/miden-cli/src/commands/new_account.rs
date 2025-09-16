@@ -157,7 +157,7 @@ pub struct NewAccountCmd {
     #[arg(long, value_enum)]
     pub account_type: CliAccountType,
     /// List of files specifying component template files for the account. At
-    /// lease one component template is required.
+    /// least one component template is required.
     #[arg(short, long)]
     pub component_templates: Vec<PathBuf>,
     /// List of files containing a Miden Package in `.masp` form from which a
