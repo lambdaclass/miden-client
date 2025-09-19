@@ -24,7 +24,11 @@ use wasm_bindgen_futures::JsFuture;
 use super::WebStore;
 use crate::account::js_bindings::idxdb_get_account_addresses;
 use crate::account::models::AccountIdAddressIdxdbObject;
-use crate::account::utils::{insert_account_addresses, parse_account_address_idxdb_object};
+use crate::account::utils::{
+    insert_account_addresses,
+    parse_account_address_idxdb_object,
+    remove_account_address,
+};
 
 mod js_bindings;
 pub use js_bindings::{JsStorageMapEntry, JsStorageSlot, JsVaultAsset};
@@ -301,7 +305,7 @@ impl WebStore {
             StoreError::DatabaseError(format!("failed to insert account record: {js_error:?}",))
         })?;
 
-        insert_account_addresses(account, addresses).await.map_err(|js_error| {
+        insert_account_addresses(&account.id(), addresses).await.map_err(|js_error| {
             StoreError::DatabaseError(format!("failed to insert account addresses: {js_error:?}",))
         })?;
 
@@ -443,5 +447,23 @@ impl WebStore {
         })?;
 
         Ok(())
+    }
+
+    pub(crate) async fn insert_address(&self, address: AccountIdAddress) -> Result<(), StoreError> {
+        insert_account_addresses(&address.id(), vec![address])
+            .await
+            .map_err(|js_error| {
+                StoreError::DatabaseError(format!(
+                    "failed to insert account addresses: {js_error:?}",
+                ))
+            })?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn remove_address(&self, address: AccountIdAddress) -> Result<(), StoreError> {
+        remove_account_address(address).await.map_err(|js_error| {
+            StoreError::DatabaseError(format!("failed to remove account address: {js_error:?}"))
+        })
     }
 }

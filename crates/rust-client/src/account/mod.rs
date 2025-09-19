@@ -234,6 +234,38 @@ impl<AUTH> Client<AUTH> {
         self.add_account(&account, None, true).await
     }
 
+    /// Adds an address to the associated [`AccountId`], alongside its derived [`NoteTag`].
+    ///
+    /// # Errors
+    /// - If the account is not found on the network.
+    /// - If the address is already being tracked.
+    pub async fn add_address(&mut self, address: AccountIdAddress) -> Result<(), ClientError> {
+        let tracked_account = self.store.get_account(address.id()).await?;
+        match tracked_account {
+            None => Err(ClientError::AccountDataNotFound(address.id())),
+            Some(_tracked_account) => {
+                self.store.insert_account_address(address).await?;
+                Ok(())
+            },
+        }
+    }
+
+    /// Removes an address from the associated [`AccountId`], alongside its derived [`NoteTag`].
+    ///
+    /// # Errors
+    /// - If the account is not found on the network.
+    /// - If the address is not being tracked.
+    pub async fn remove_address(&mut self, address: AccountIdAddress) -> Result<(), ClientError> {
+        let tracked_account = self.store.get_account(address.id()).await?;
+        match tracked_account {
+            None => Err(ClientError::AccountDataNotFound(address.id())),
+            Some(_tracked_account) => {
+                self.store.remove_account_address(address).await?;
+                Ok(())
+            },
+        }
+    }
+
     // ACCOUNT DATA RETRIEVAL
     // --------------------------------------------------------------------------------------------
 

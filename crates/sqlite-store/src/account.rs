@@ -22,6 +22,7 @@ use miden_client::account::{
 use miden_client::asset::{Asset, AssetVault, FungibleAsset, NonFungibleDeltaAction};
 use miden_client::crypto::{MerklePath, MerkleStore, SmtLeaf, SmtProof};
 use miden_client::store::{AccountRecord, AccountStatus, StoreError};
+use miden_client::sync::NoteTagRecord;
 use miden_client::utils::{Deserializable, Serializable};
 use miden_client::{AccountError, Felt, Word};
 use miden_objects::account::StorageMapWitness;
@@ -38,6 +39,7 @@ use crate::merkle_store::{
     update_storage_map_nodes,
 };
 use crate::sql_error::SqlResultExt;
+use crate::sync::{add_note_tag_tx, remove_note_tag_tx};
 use crate::{insert_sql, subst};
 
 // TYPES
@@ -351,6 +353,40 @@ impl SqliteStore {
         account_id: AccountId,
     ) -> Result<Vec<AccountIdAddress>, StoreError> {
         query_account_addresses(conn, account_id)
+    }
+
+    pub(crate) fn insert_account_address(
+        conn: &mut Connection,
+        address: AccountIdAddress,
+    ) -> Result<(), StoreError> {
+        let account_id = address.id();
+        let derived_note_tag = address.to_note_tag();
+        let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, account_id);
+
+        if Self::get_note_tags(conn)?.contains(&note_tag_record) {
+            return Err(StoreError::NoteTagAlreadyTracked(u64::from(note_tag_record.tag.as_u32())));
+        }
+
+        let tx = conn.transaction().into_store_error()?;
+        add_note_tag_tx(&tx, &note_tag_record)?;
+        Self::insert_addresses(&tx, vec![address].into_iter(), account_id)?;
+
+        tx.commit().into_store_error()
+    }
+
+    pub(crate) fn remove_account_address(
+        conn: &mut Connection,
+        address: AccountIdAddress,
+    ) -> Result<(), StoreError> {
+        let account_id = address.id();
+        let derived_note_tag = address.to_note_tag();
+        let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, account_id);
+
+        let tx = conn.transaction().into_store_error()?;
+        remove_note_tag_tx(&tx, note_tag_record)?;
+        Self::remove_address(&tx, address)?;
+
+        tx.commit().into_store_error()
     }
 
     // ACCOUNT DELTA HELPERS
@@ -810,6 +846,15 @@ impl SqliteStore {
             tx.execute(QUERY, params![serialized_address, account_id.to_hex(),])
                 .into_store_error()?;
         }
+
+        Ok(())
+    }
+
+    fn remove_address(tx: &Transaction<'_>, address: AccountIdAddress) -> Result<(), StoreError> {
+        let serialized_address: [u8; AccountIdAddress::SERIALIZED_SIZE] = address.into();
+
+        const DELETE_QUERY: &str = "DELETE FROM addresses WHERE address = ?";
+        tx.execute(DELETE_QUERY, params![serialized_address]).into_store_error()?;
 
         Ok(())
     }

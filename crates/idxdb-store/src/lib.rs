@@ -268,6 +268,24 @@ impl Store for WebStore {
     ) -> Result<Vec<AccountIdAddress>, StoreError> {
         self.get_account_addresses(account_id).await
     }
+
+    async fn insert_account_address(&self, address: AccountIdAddress) -> Result<(), StoreError> {
+        let derived_note_tag = address.to_note_tag();
+        let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, address.id());
+        let already_taken = self.add_note_tag(note_tag_record).await?;
+        if already_taken {
+            return Err(StoreError::NoteTagAlreadyTracked(derived_note_tag.as_u32() as u64));
+        }
+
+        self.insert_address(address).await
+    }
+
+    async fn remove_account_address(&self, address: AccountIdAddress) -> Result<(), StoreError> {
+        let derived_note_tag = address.to_note_tag();
+        let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, address.id());
+        self.remove_note_tag(note_tag_record).await?;
+        self.remove_address(address).await
+    }
 }
 
 // UTILS
