@@ -175,18 +175,6 @@ miden-client notes --show 0x70b7ec
 
 Sync the client with the latest state of the Miden network. Shows a brief summary at the end.
 
-### `tags`
-
-View and add tags.
-
-#### Action Flags
-
-| Flag            | Description                                                 | Aliases |
-|-----------------|-------------------------------------------------------------|---------|
-| `--list`        | List all tags monitored by this client                      | `-l`    |
-| `--add <tag>`   | Add a new tag to the list of tags monitored by this client  | `-a`    |
-| `--remove <tag>`| Remove a tag from the list of tags monitored by this client | `-r`    |
-
 ### `tx`
 
 View transactions.
