@@ -243,6 +243,38 @@ The source account creates a `SWAP` note that offers some asset in exchange for 
 
 Usage:  `miden-client swap --source <SOURCE ACCOUNT ID> --offered-asset <OFFERED AMOUNT>::<OFFERED FAUCET ID> --requested-asset <REQUESTED AMOUNT>::<REQUESTED FAUCET ID> --note-type <NOTE_TYPE>`
 
+### `addresses`
+
+View and manage addresses.
+
+#### Action Flags
+
+| Flags                      | Description                                                 | Short Flag |
+|----------------------------|-------------------------------------------------------------|------------|
+|`--list <ID>`               | List addresses for the specified account ID                 | `-l`       |
+|`--add <ID> <INTERFACE>`    | Bind an address for an interface for specified account ID   | `-a`       |
+|`--remove <ID> <INTERFACE>` | Remove an address for an interface for specified account ID | `-r`       |
+
+All commands require an account ID to be specified.
+
+The `--list` takes no arguments besides the account ID, and lists all addresses for that account:
+
+```sh
+miden-client addresses --list 0x17f13f4f83a8e8100c19d2961dfda2
+```
+
+The `--add` and `--remove` take and aditional argument, which is the interface being added or removed, these values can be:
+- `unspecified`: The default interface.
+- `basic_wallet`: The basic wallet interface.
+
+```sh
+miden-client addresses 0x17f13f4f83a8e8100c19d2961dfda2 --remove basic_wallet
+```
+
+```sh
+miden-client addresses 0x17f13f4f83a8e8100c19d2961dfda2 --add basic_wallet
+```
+
 #### Tips
 For `send` and `consume-notes`, you can omit the `--sender` and `--account` flags to use the default account defined in the [config](./cli-config.md). If you omit the flag but have no default account defined in the config, you'll get an error instead.
 

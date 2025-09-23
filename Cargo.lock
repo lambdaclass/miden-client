@@ -2187,6 +2187,7 @@ dependencies = [
  "clap 4.5.47",
  "comfy-table",
  "figment",
+ "hex",
  "miden-client",
  "miden-client-sqlite-store",
  "miden-lib",
