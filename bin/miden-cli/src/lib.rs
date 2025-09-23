@@ -21,6 +21,7 @@ use commands::import::ImportCmd;
 use commands::init::InitCmd;
 use commands::new_account::{NewAccountCmd, NewWalletCmd};
 use commands::new_transactions::{ConsumeNotesCmd, MintCmd, SendCmd, SwapCmd};
+use commands::notes::NotesCmd;
 use commands::sync::SyncCmd;
 use commands::tags::TagsCmd;
 use commands::transactions::TransactionCmd;
@@ -131,6 +132,7 @@ pub enum Command {
     Import(ImportCmd),
     Export(ExportCmd),
     Init(InitCmd),
+    Notes(NotesCmd),
     Sync(SyncCmd),
     /// View a summary of the current client state.
     Info,
@@ -204,6 +206,7 @@ impl Cli {
             Command::Import(import) => import.execute(client, keystore).await,
             Command::Init(_) => Ok(()),
             Command::Info => info::print_client_info(&client).await,
+            Command::Notes(notes) => Box::pin(notes.execute(client)).await,
             Command::Sync(sync) => sync.execute(client).await,
             Command::Tags(tags) => tags.execute(client).await,
             Command::Addresses(addresses) => addresses.execute(client).await,
