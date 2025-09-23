@@ -8,5 +8,4 @@ pub mod new_account;
 pub mod new_transactions;
 pub mod notes;
 pub mod sync;
-pub mod tags;
 pub mod transactions;
