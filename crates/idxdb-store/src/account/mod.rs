@@ -29,6 +29,7 @@ use crate::account::utils::{
     parse_account_address_idxdb_object,
     remove_account_address,
 };
+use crate::promise::await_js;
 
 mod js_bindings;
 pub use js_bindings::{JsStorageMapEntry, JsStorageSlot, JsVaultAsset};
@@ -159,12 +160,9 @@ impl WebStore {
         let account_id_str = account_id.to_string();
 
         let promise = idxdb_get_account_addresses(account_id_str);
-        let js_value = JsFuture::from(promise).await.map_err(|js_error| {
-            StoreError::DatabaseError(format!("failed to fetch account addresses: {js_error:?}",))
-        })?;
 
-        let account_addresses_idxdb: Vec<AddressIdxdbObject> = from_value(js_value)
-            .map_err(|err| StoreError::DatabaseError(format!("failed to deserialize {err:?}")))?;
+        let account_addresses_idxdb: Vec<AddressIdxdbObject> =
+            await_js(promise, "failed to fetch account addresses").await?;
 
         account_addresses_idxdb
             .into_iter()
