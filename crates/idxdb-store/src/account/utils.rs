@@ -6,8 +6,8 @@ use miden_client::account::{
     AccountCode,
     AccountHeader,
     AccountId,
-    AccountIdAddress,
     AccountStorage,
+    Address,
     StorageSlot,
 };
 use miden_client::asset::AssetVault;
@@ -21,26 +21,26 @@ use super::js_bindings::{
     JsStorageMapEntry,
     JsStorageSlot,
     JsVaultAsset,
-    idxdb_insert_account_code,
-    idxdb_insert_account_record,
-    idxdb_insert_account_storage,
-    idxdb_insert_storage_map_entries,
-    idxdb_insert_vault_assets,
+    idxdb_upsert_account_code,
+    idxdb_upsert_account_record,
+    idxdb_upsert_account_storage,
+    idxdb_upsert_storage_map_entries,
+    idxdb_upsert_vault_assets,
 };
 use crate::account::js_bindings::idxdb_insert_account_address;
-use crate::account::models::{AccountIdAddressIdxdbObject, AccountRecordIdxdbObject};
+use crate::account::models::{AccountRecordIdxdbObject, AddressIdxdbObject};
 
-pub async fn insert_account_code(account_code: &AccountCode) -> Result<(), JsValue> {
+pub async fn upsert_account_code(account_code: &AccountCode) -> Result<(), JsValue> {
     let root = account_code.commitment().to_string();
     let code = account_code.to_bytes();
 
-    let promise = idxdb_insert_account_code(root, code);
+    let promise = idxdb_upsert_account_code(root, code);
     JsFuture::from(promise).await?;
 
     Ok(())
 }
 
-pub async fn insert_account_storage(account_storage: &AccountStorage) -> Result<(), JsValue> {
+pub async fn upsert_account_storage(account_storage: &AccountStorage) -> Result<(), JsValue> {
     let mut slots = vec![];
     let mut maps = vec![];
     for (index, slot) in account_storage.slots().iter().enumerate() {
@@ -54,38 +54,35 @@ pub async fn insert_account_storage(account_storage: &AccountStorage) -> Result<
         }
     }
 
-    JsFuture::from(idxdb_insert_account_storage(slots)).await?;
-    JsFuture::from(idxdb_insert_storage_map_entries(maps)).await?;
+    JsFuture::from(idxdb_upsert_account_storage(slots)).await?;
+    JsFuture::from(idxdb_upsert_storage_map_entries(maps)).await?;
 
     Ok(())
 }
 
-pub async fn insert_account_asset_vault(asset_vault: &AssetVault) -> Result<(), JsValue> {
+pub async fn upsert_account_asset_vault(asset_vault: &AssetVault) -> Result<(), JsValue> {
     let js_assets: Vec<JsVaultAsset> = asset_vault
         .assets()
         .map(|asset| JsVaultAsset::from_asset(&asset, asset_vault.root()))
         .collect();
 
-    let promise = idxdb_insert_vault_assets(js_assets);
+    let promise = idxdb_upsert_vault_assets(js_assets);
     JsFuture::from(promise).await?;
 
     Ok(())
 }
 
-pub async fn insert_account_record(
-    account: &Account,
-    account_seed: Option<Word>,
-) -> Result<(), JsValue> {
+pub async fn upsert_account_record(account: &Account) -> Result<(), JsValue> {
     let account_id_str = account.id().to_string();
     let code_root = account.code().commitment().to_string();
     let storage_root = account.storage().commitment().to_string();
     let vault_root = account.vault().root().to_string();
     let committed = account.is_public();
     let nonce = account.nonce().to_string();
-    let account_seed = account_seed.map(|seed| seed.to_bytes());
+    let account_seed = account.seed().map(|seed| seed.to_bytes());
     let commitment = account.commitment().to_string();
 
-    let promise = idxdb_insert_account_record(
+    let promise = idxdb_upsert_account_record(
         account_id_str,
         code_root,
         storage_root,
@@ -100,24 +97,22 @@ pub async fn insert_account_record(
     Ok(())
 }
 
-pub async fn insert_account_addresses(
+pub async fn insert_account_address(
     account_id: &AccountId,
-    addresses: Vec<AccountIdAddress>,
+    address: Address,
 ) -> Result<(), JsValue> {
-    for address in addresses {
-        let account_id_str = account_id.to_string();
-        let serialized_address: [u8; AccountIdAddress::SERIALIZED_SIZE] = address.into();
-        let promise = idxdb_insert_account_address(account_id_str, serialized_address.to_vec());
-        JsFuture::from(promise).await?;
-    }
+    let account_id_str = account_id.to_string();
+    let serialized_address = address.to_bytes();
+    let promise = idxdb_insert_account_address(account_id_str, serialized_address);
+    JsFuture::from(promise).await?;
 
     Ok(())
 }
 
-pub async fn remove_account_address(address: AccountIdAddress) -> Result<(), JsValue> {
-    let serialized_address: [u8; AccountIdAddress::SERIALIZED_SIZE] = address.into();
+pub async fn remove_account_address(address: Address) -> Result<(), JsValue> {
+    let serialized_address = address.to_bytes();
     let promise =
-        crate::account::js_bindings::idxdb_remove_account_address(serialized_address.to_vec());
+        crate::account::js_bindings::idxdb_remove_account_address(serialized_address.clone());
     JsFuture::from(promise).await?;
 
     Ok(())
@@ -154,22 +149,17 @@ pub fn parse_account_record_idxdb_object(
 }
 
 pub fn parse_account_address_idxdb_object(
-    account_address_idxdb: AccountIdAddressIdxdbObject,
-) -> Result<(AccountIdAddress, AccountId), StoreError> {
+    account_address_idxdb: &AddressIdxdbObject,
+) -> Result<(Address, AccountId), StoreError> {
     let native_account_id: AccountId = AccountId::from_hex(&account_address_idxdb.id)?;
 
-    let address: [u8; AccountIdAddress::SERIALIZED_SIZE] = account_address_idxdb
-        .address
-        .try_into()
-        .map_err(|_| StoreError::ParsingError("invalid address length".to_string()))?;
-    let native_address = AccountIdAddress::try_from(address).map_err(|err| {
-        StoreError::ParsingError(format!("failed to parse address from bytes: {err}"))
-    })?;
-    Ok((native_address, native_account_id))
+    let address = Address::read_from_bytes(&account_address_idxdb.address)?;
+
+    Ok((address, native_account_id))
 }
 
 pub async fn update_account(new_account_state: &Account) -> Result<(), JsValue> {
-    insert_account_storage(new_account_state.storage()).await?;
-    insert_account_asset_vault(new_account_state.vault()).await?;
-    insert_account_record(new_account_state, None).await
+    upsert_account_storage(new_account_state.storage()).await?;
+    upsert_account_asset_vault(new_account_state.vault()).await?;
+    upsert_account_record(new_account_state).await
 }

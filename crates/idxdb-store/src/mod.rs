@@ -9,6 +9,7 @@
 
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use miden_client::Word;
@@ -186,9 +187,9 @@ impl Store for WebStore {
         &self,
         account: &Account,
         account_seed: Option<Word>,
-        addresses: Vec<AccountIdAddress>,
+        initial_address: Address,
     ) -> Result<(), StoreError> {
-        self.insert_account(account, account_seed, addresses).await
+        self.insert_account(account, account_seed, initial_address).await
     }
 
     async fn update_account(&self, new_account_state: &Account) -> Result<(), StoreError> {
@@ -257,8 +258,27 @@ impl Store for WebStore {
     async fn get_addresses_by_account_id(
         &self,
         account_id: AccountId,
-    ) -> Result<Vec<AccountIdAddress>, StoreError> {
+    ) -> Result<Vec<Address>, StoreError> {
         self.get_addresses_by_account_id(account_id).await
+    }
+
+    // SETTINGS
+    // --------------------------------------------------------------------------------------------
+
+    async fn set_setting(&self, _key: String, _value: Vec<u8>) -> Result<(), StoreError> {
+        unimplemented!()
+    }
+
+    async fn get_setting(&self, _key: String) -> Result<Option<Vec<u8>>, StoreError> {
+        unimplemented!()
+    }
+
+    async fn remove_setting(&self, _key: String) -> Result<(), StoreError> {
+        unimplemented!()
+    }
+
+    async fn list_setting_keys(&self) -> Result<Vec<String>, StoreError> {
+        unimplemented!()
     }
 }
 

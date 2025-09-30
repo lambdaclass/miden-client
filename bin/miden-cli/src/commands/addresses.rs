@@ -1,6 +1,7 @@
-use miden_client::Client;
-use miden_client::account::{AccountIdAddress, AddressInterface};
+use miden_client::account::{AccountId, AccountIdAddress, AddressInterface};
+use miden_client::address::Address;
 use miden_client::note::NoteExecutionMode;
+use miden_client::{Client, Serializable};
 use tracing::info;
 
 use crate::errors::CliError;
@@ -64,7 +65,7 @@ async fn list_addresses<AUTH>(client: Client<AUTH>, account_id: String) -> Resul
     println!("Addresses for AccountId {account_id}:");
     let mut table = create_dynamic_table(&["Address", "Interface"]);
     for address in addresses {
-        let serialized_address: [u8; AccountIdAddress::SERIALIZED_SIZE] = address.into();
+        let serialized_address = hex::encode(address.to_bytes());
         let address_hex = hex::encode(serialized_address);
         let interface = match address.interface() {
             AddressInterface::Unspecified => "Unspecified".to_string(),
@@ -80,18 +81,16 @@ async fn list_addresses<AUTH>(client: Client<AUTH>, account_id: String) -> Resul
     Ok(())
 }
 
-async fn build_address_from_cli_args<AUTH>(
-    client: &Client<AUTH>,
-    account_id: &str,
-    interface: String,
-) -> Result<AccountIdAddress, CliError> {
-    let id = parse_account_id(&client, &account_id).await?;
-    let interface = match interface.as_str() {
+fn build_address_from_cli_args(
+    account_id: AccountId,
+    interface: &str,
+) -> Result<Address, CliError> {
+    let interface = match interface {
         "unspecified" => AddressInterface::Unspecified,
         "basic_wallet" => AddressInterface::BasicWallet,
         _ => return Err(CliError::Input("Invalid interface input value".to_string())),
     };
-    Ok(AccountIdAddress::new(id, interface))
+    Ok(Address::AccountId(AccountIdAddress::new(account_id, interface)))
 }
 
 async fn add_address<AUTH>(
@@ -99,7 +98,8 @@ async fn add_address<AUTH>(
     account_id: String,
     interface: String,
 ) -> Result<(), CliError> {
-    let address = build_address_from_cli_args(&client, &account_id, interface).await?;
+    let account_id = parse_account_id(&client, &account_id).await?;
+    let address = build_address_from_cli_args(account_id, &interface)?;
     let execution_mode = match address.to_note_tag().execution_mode() {
         NoteExecutionMode::Local => "Local",
         NoteExecutionMode::Network => "Network",
@@ -109,7 +109,7 @@ async fn add_address<AUTH>(
         account_id, execution_mode
     );
 
-    client.add_address(address).await?;
+    client.add_address(address, account_id).await?;
     Ok(())
 }
 
@@ -118,7 +118,8 @@ async fn remove_address<AUTH>(
     account_id: String,
     interface: String,
 ) -> Result<(), CliError> {
-    let address = build_address_from_cli_args(&client, &account_id, interface).await?;
+    let account_id = parse_account_id(&client, &account_id).await?;
+    let address = build_address_from_cli_args(account_id, &interface)?;
     let execution_mode = match address.to_note_tag().execution_mode() {
         NoteExecutionMode::Local => "Local",
         NoteExecutionMode::Network => "Network",
@@ -129,6 +130,6 @@ async fn remove_address<AUTH>(
         account_id, execution_mode
     );
 
-    client.remove_address(address).await?;
+    client.remove_address(address, account_id).await?;
     Ok(())
 }

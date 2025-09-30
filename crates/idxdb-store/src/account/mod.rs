@@ -7,9 +7,9 @@ use miden_client::account::{
     AccountCode,
     AccountHeader,
     AccountId,
-    AccountIdAddress,
     AccountIdError,
     AccountStorage,
+    Address,
     StorageMap,
     StorageSlot,
     StorageSlotType,
@@ -23,9 +23,9 @@ use wasm_bindgen_futures::JsFuture;
 
 use super::WebStore;
 use crate::account::js_bindings::idxdb_get_account_addresses;
-use crate::account::models::AccountIdAddressIdxdbObject;
+use crate::account::models::AddressIdxdbObject;
 use crate::account::utils::{
-    insert_account_addresses,
+    insert_account_address,
     parse_account_address_idxdb_object,
     remove_account_address,
 };
@@ -59,12 +59,12 @@ use models::{
 
 pub(crate) mod utils;
 use utils::{
-    insert_account_asset_vault,
-    insert_account_code,
-    insert_account_record,
-    insert_account_storage,
     parse_account_record_idxdb_object,
     update_account,
+    upsert_account_asset_vault,
+    upsert_account_code,
+    upsert_account_record,
+    upsert_account_storage,
 };
 
 impl WebStore {
@@ -155,7 +155,7 @@ impl WebStore {
     pub(crate) async fn get_account_addresses(
         &self,
         account_id: AccountId,
-    ) -> Result<Vec<AccountIdAddress>, StoreError> {
+    ) -> Result<Vec<Address>, StoreError> {
         let account_id_str = account_id.to_string();
 
         let promise = idxdb_get_account_addresses(account_id_str);
@@ -163,16 +163,13 @@ impl WebStore {
             StoreError::DatabaseError(format!("failed to fetch account addresses: {js_error:?}",))
         })?;
 
-        let account_addresses_idxdb: Vec<AccountIdAddressIdxdbObject> = from_value(js_value)
+        let account_addresses_idxdb: Vec<AddressIdxdbObject> = from_value(js_value)
             .map_err(|err| StoreError::DatabaseError(format!("failed to deserialize {err:?}")))?;
 
-        let mut account_addresses = vec![];
-        for account_address_idxdb in account_addresses_idxdb {
-            let (account_address, _) = parse_account_address_idxdb_object(account_address_idxdb)?;
-            account_addresses.push(account_address);
-        }
-
-        Ok(account_addresses)
+        account_addresses_idxdb
+            .into_iter()
+            .map(|obj| parse_account_address_idxdb_object(&obj).map(|(addr, _)| addr))
+            .collect::<Result<Vec<Address>, StoreError>>()
     }
 
     pub(crate) async fn get_account(
@@ -189,13 +186,14 @@ impl WebStore {
         let assets = self.get_vault_assets(account_header.vault_root()).await?;
         let account_vault = AssetVault::new(&assets)?;
 
-        let account = Account::from_parts(
+        let account = Account::new(
             account_header.id(),
             account_vault,
             account_storage,
             account_code,
             account_header.nonce(),
-        );
+            status.seed().copied(),
+        )?;
 
         let addresses = self.get_account_addresses(account_id).await?;
 
@@ -286,28 +284,31 @@ impl WebStore {
     pub(crate) async fn insert_account(
         &self,
         account: &Account,
-        account_seed: Option<Word>,
-        addresses: Vec<AccountIdAddress>,
+        initial_address: Address,
     ) -> Result<(), StoreError> {
-        insert_account_code(account.code()).await.map_err(|js_error| {
+        upsert_account_code(account.code()).await.map_err(|js_error| {
             StoreError::DatabaseError(format!("failed to insert account code: {js_error:?}",))
         })?;
 
-        insert_account_storage(account.storage()).await.map_err(|js_error| {
+        upsert_account_storage(account.storage()).await.map_err(|js_error| {
             StoreError::DatabaseError(format!("failed to insert account storage:{js_error:?}",))
         })?;
 
-        insert_account_asset_vault(account.vault()).await.map_err(|js_error| {
+        upsert_account_asset_vault(account.vault()).await.map_err(|js_error| {
             StoreError::DatabaseError(format!("failed to insert account vault:{js_error:?}",))
         })?;
 
-        insert_account_record(account, account_seed).await.map_err(|js_error| {
+        upsert_account_record(account).await.map_err(|js_error| {
             StoreError::DatabaseError(format!("failed to insert account record: {js_error:?}",))
         })?;
 
-        insert_account_addresses(&account.id(), addresses).await.map_err(|js_error| {
-            StoreError::DatabaseError(format!("failed to insert account addresses: {js_error:?}",))
-        })?;
+        insert_account_address(&account.id(), initial_address)
+            .await
+            .map_err(|js_error| {
+                StoreError::DatabaseError(format!(
+                    "failed to insert account addresses: {js_error:?}",
+                ))
+            })?;
 
         Ok(())
     }
@@ -449,19 +450,19 @@ impl WebStore {
         Ok(())
     }
 
-    pub(crate) async fn insert_address(&self, address: AccountIdAddress) -> Result<(), StoreError> {
-        insert_account_addresses(&address.id(), vec![address])
-            .await
-            .map_err(|js_error| {
-                StoreError::DatabaseError(format!(
-                    "failed to insert account addresses: {js_error:?}",
-                ))
-            })?;
+    pub(crate) async fn insert_address(
+        &self,
+        address: Address,
+        account_id: &AccountId,
+    ) -> Result<(), StoreError> {
+        insert_account_address(account_id, address).await.map_err(|js_error| {
+            StoreError::DatabaseError(format!("failed to insert account addresses: {js_error:?}",))
+        })?;
 
         Ok(())
     }
 
-    pub(crate) async fn remove_address(&self, address: AccountIdAddress) -> Result<(), StoreError> {
+    pub(crate) async fn remove_address(&self, address: Address) -> Result<(), StoreError> {
         remove_account_address(address).await.map_err(|js_error| {
             StoreError::DatabaseError(format!("failed to remove account address: {js_error:?}"))
         })

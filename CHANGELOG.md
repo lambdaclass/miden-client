@@ -7,7 +7,12 @@
 * Added `serialize` and `deserialize` methods for `NoteScript` [(#1117)](https://github.com/0xMiden/miden-client/pull/1117).
 * Added support for getting specific vault and storage elements from `Store` along with their proofs ([#1164](https://github.com/0xMiden/miden-client/pull/1164)).
 * Implemented functions for lazy loading on webstore [(#1184)](https://github.com/0xMiden/miden-client/pull/1184).
-* Added single default address on accounts creation ([#1308](https://github.com/0xMiden/miden-client/pull/1308)).
+* Separated `migrations` and `settings` tables [(#1287)](https://github.com/0xMiden/miden-client/pull/1287).
+* Added single default address on account creation ([#1308](https://github.com/0xMiden/miden-client/pull/1308)).
+* Added a `GetNoteScriptByRoot` call to the `RpcClient` ([#1311](https://github.com/0xMiden/miden-client/pull/1311)).
+* Implemented account lazy loading with more granular account data getters ([#1321](https://github.com/0xMiden/miden-client/pull/1321)).
+* Added `NoAuth` component to the web client ([#1330](https://github.com/0xMiden/miden-client/pull/1330)).
+* Implemented shared source manager for better error reporting ([#1275](https://github.com/0xMiden/miden-client/pull/1275)).
 
 ### Changes
 
@@ -16,6 +21,30 @@
 * [BREAKING] Moved `SqliteStore` and `WebStore` into their own separate crates ([#1253](https://github.com/0xMiden/miden-client/pull/1253)).
 * [BREAKING] Added `block_to` parameter to `NodeRpcClient::sync_nullifiers` for better pagination control ([#1309](https://github.com/0xMiden/miden-client/pull/1309)).
 * [BREAKING] Removed `web-tonic` feature ([#1268](https://github.com/0xMiden/miden-client/pull/1268)).
+* [BREAKING] Updated Web Client account store functions from insert to upsert ([#1274](https://github.com/0xMiden/miden-client/pull/1274)).
+* Removed `miden-lib` and `miden-objects` dependencies from web client & cli ([#1333](https://github.com/0xMiden/miden-client/pull/1333)).
+
+## 0.11.8 (2025-09-29)
+
+* Added `serialize` and `deserialize` methods for `NoteScript` [(#1117)](https://github.com/0xMiden/miden-client/pull/1117).
+
+## 0.11.7 (2025-09-26)
+
+* Fixed an issue where `AccountId` was being left as null-pointer ([#1340](https://github.com/0xMiden/miden-client/pull/1340)).
+
+## 0.11.6 (2025-09-18)
+
+* Added a way to retrieve a secret key in the client given a pub key ([#1293](https://github.com/0xMiden/miden-client/pull/1293)).
+* Reexported all authentication components from `miden-lib` ([#1297](https://github.com/0xMiden/miden-client/pull/1297)).
+* Added `Signature` to the list of exported types in `index.d.ts`([#1303](https://github.com/0xMiden/miden-client/pull/1303)).
+* Patched `miden-base` dependencies to 0.11.4 ([#1314](https://github.com/0xMiden/miden-client/pull/1314)).
+
+## 0.11.4 (2025-09-11)
+
+* Added a mutable getter for `TransactionRequest`'s advice map ([#1254](https://github.com/0xMiden/miden-client/pull/1254)).
+* Added a way to retrieve map items in web client ([#1282](https://github.com/0xMiden/miden-client/pull/1282)).
+* Defined `AccountInterface.Unspecified` in web client ([#1286](https://github.com/0xMiden/miden-client/pull/1286)).
+* Removed `AccountId.fromBech32` ([#1288](https://github.com/0xMiden/miden-client/pull/1288)).
 
 ## 0.11.3 (2025-09-08)
 

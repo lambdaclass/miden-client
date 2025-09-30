@@ -8,7 +8,7 @@ use miden_objects::Word;
 use miden_objects::account::{Account, AccountCode, AccountId};
 use miden_objects::block::{AccountWitness, BlockHeader, BlockNumber, ProvenBlock};
 use miden_objects::crypto::merkle::{Forest, MerklePath, MmrProof, SmtProof};
-use miden_objects::note::{NoteId, NoteTag, Nullifier};
+use miden_objects::note::{NoteId, NoteScript, NoteTag, Nullifier};
 use miden_objects::transaction::ProvenTransaction;
 use miden_objects::utils::Deserializable;
 use miden_tx::utils::Serializable;
@@ -262,7 +262,7 @@ impl NodeRpcClient for TonicRpcClient {
 
         let update_summary = AccountUpdateSummary::new(commitment, account_summary.block_num);
         if account_id.is_private() {
-            Ok(FetchedAccount::Private(account_id, update_summary))
+            Ok(FetchedAccount::new_private(account_id, update_summary))
         } else {
             let account = Account::read_from_bytes(&response.details.ok_or(
                 RpcError::ExpectedDataMissing(
@@ -270,7 +270,7 @@ impl NodeRpcClient for TonicRpcClient {
                 ),
             )?)?;
 
-            Ok(FetchedAccount::Public(account, update_summary))
+            Ok(FetchedAccount::new_public(account, update_summary))
         }
     }
 
@@ -306,6 +306,7 @@ impl NodeRpcClient for TonicRpcClient {
         // Request proofs one-by-one using the singular API
         for foreign_account in account_requests {
             let account_id = foreign_account.account_id();
+            let storage_requirements = foreign_account.storage_slot_requirements();
 
             // Only request details for public accounts; include known code commitment for this
             // account when available
@@ -315,7 +316,7 @@ impl NodeRpcClient for TonicRpcClient {
                     .map(|code| proto::primitives::Digest::from(code.commitment()));
                 Some(proto::rpc_store::account_proof_request::AccountDetailsRequest {
                     code_commitment,
-                    storage_requests: foreign_account.storage_slot_requirements().into(),
+                    storage_requests: storage_requirements.clone().into(),
                 })
             } else {
                 None
@@ -350,7 +351,7 @@ impl NodeRpcClient for TonicRpcClient {
                     response
                         .details
                         .ok_or(RpcError::ExpectedDataMissing("Account.Details".to_string()))?
-                        .into_domain(&known_codes_by_commitment)?,
+                        .into_domain(&known_codes_by_commitment, &storage_requirements)?,
                 )
             } else {
                 None
@@ -494,6 +495,25 @@ impl NodeRpcClient for TonicRpcClient {
             ))?)?;
 
         Ok(block)
+    }
+
+    async fn get_note_script_by_root(&self, root: Word) -> Result<NoteScript, RpcError> {
+        let request = proto::note::NoteRoot { root: Some(root.into()) };
+
+        let mut rpc_api = self.ensure_connected().await?;
+
+        let response = rpc_api.get_note_script_by_root(request).await.map_err(|status| {
+            RpcError::from_grpc_error(NodeRpcClientEndpoint::GetNoteScriptByRoot, status)
+        })?;
+
+        let response = response.into_inner();
+        let note_script = NoteScript::try_from(
+            response
+                .script
+                .ok_or(RpcError::ExpectedDataMissing("GetNoteScriptByRoot.script".to_string()))?,
+        )?;
+
+        Ok(note_script)
     }
 }
 

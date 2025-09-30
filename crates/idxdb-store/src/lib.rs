@@ -18,8 +18,8 @@ use miden_client::account::{
     AccountCode,
     AccountHeader,
     AccountId,
-    AccountIdAddress,
     AccountStorage,
+    Address,
 };
 use miden_client::asset::AssetVault;
 use miden_client::block::BlockHeader;
@@ -193,10 +193,9 @@ impl Store for WebStore {
     async fn insert_account(
         &self,
         account: &Account,
-        account_seed: Option<Word>,
-        addresses: Vec<AccountIdAddress>,
+        initial_address: Address,
     ) -> Result<(), StoreError> {
-        self.insert_account(account, account_seed, addresses).await
+        self.insert_account(account, initial_address).await
     }
 
     async fn update_account(&self, new_account_state: &Account) -> Result<(), StoreError> {
@@ -265,26 +264,53 @@ impl Store for WebStore {
     async fn get_addresses_by_account_id(
         &self,
         account_id: AccountId,
-    ) -> Result<Vec<AccountIdAddress>, StoreError> {
+    ) -> Result<Vec<Address>, StoreError> {
         self.get_account_addresses(account_id).await
     }
 
-    async fn insert_account_address(&self, address: AccountIdAddress) -> Result<(), StoreError> {
+    async fn insert_address(
+        &self,
+        address: Address,
+        account_id: AccountId,
+    ) -> Result<(), StoreError> {
         let derived_note_tag = address.to_note_tag();
-        let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, address.id());
+        let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, account_id);
         let already_taken = self.add_note_tag(note_tag_record).await?;
         if already_taken {
-            return Err(StoreError::NoteTagAlreadyTracked(derived_note_tag.as_u32() as u64));
+            return Err(StoreError::NoteTagAlreadyTracked(u64::from(derived_note_tag.as_u32())));
         }
 
-        self.insert_address(address).await
+        self.insert_address(address, &account_id).await
     }
 
-    async fn remove_account_address(&self, address: AccountIdAddress) -> Result<(), StoreError> {
+    async fn remove_address(
+        &self,
+        address: Address,
+        account_id: AccountId,
+    ) -> Result<(), StoreError> {
         let derived_note_tag = address.to_note_tag();
-        let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, address.id());
+        let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, account_id);
         self.remove_note_tag(note_tag_record).await?;
         self.remove_address(address).await
+    }
+
+    // SETTINGS
+    // --------------------------------------------------------------------------------------------
+
+    async fn set_setting(&self, _key: String, _value: Vec<u8>) -> Result<(), StoreError> {
+        unimplemented!()
+    }
+
+    async fn get_setting(&self, _key: String) -> Result<Option<Vec<u8>>, StoreError> {
+        unimplemented!()
+    }
+
+    async fn remove_setting(&self, _key: String) -> Result<(), StoreError> {
+        unimplemented!()
+    }
+
+    async fn list_setting_keys(&self) -> Result<Vec<String>, StoreError> {
+        unimplemented!()
     }
 }
 

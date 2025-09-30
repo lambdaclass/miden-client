@@ -251,7 +251,7 @@ The `--list` takes no arguments besides the account ID, and lists all addresses 
 miden-client addresses --list 0x17f13f4f83a8e8100c19d2961dfda2
 ```
 
-The `--add` and `--remove` take and aditional argument, which is the interface being added or removed, these values can be:
+The `--add` and `--remove` take and additional argument, which is the interface being added or removed, these values can be:
 - `unspecified`: The default interface.
 - `basic_wallet`: The basic wallet interface.
 

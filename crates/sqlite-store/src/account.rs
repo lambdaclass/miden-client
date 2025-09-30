@@ -12,15 +12,15 @@ use miden_client::account::{
     AccountDelta,
     AccountHeader,
     AccountId,
-    AccountIdAddress,
     AccountIdPrefix,
     AccountStorage,
+    Address,
     StorageMap,
     StorageSlot,
     StorageSlotType,
 };
-use miden_client::asset::{Asset, AssetVault, FungibleAsset, NonFungibleDeltaAction};
-use miden_client::crypto::{MerklePath, MerkleStore, SmtLeaf, SmtProof};
+use miden_client::asset::{Asset, AssetVault, AssetWitness, FungibleAsset, NonFungibleDeltaAction};
+use miden_client::crypto::{MerkleStore, SmtLeaf, SmtProof};
 use miden_client::store::{AccountRecord, AccountStatus, StoreError};
 use miden_client::sync::NoteTagRecord;
 use miden_client::utils::{Deserializable, Serializable};
@@ -131,21 +131,24 @@ impl SqliteStore {
             return Ok(None);
         };
 
-        let addresses = query_account_addresses(conn, header.id())?;
+        let account = Account::new_unchecked(
+            header.id(),
+            vault,
+            storage,
+            account_code,
+            header.nonce(),
+            status.seed().copied(),
+        );
 
-        Ok(Some(AccountRecord::new(
-            Account::from_parts(header.id(), vault, storage, account_code, header.nonce()),
-            status,
-            addresses,
-        )))
+        let addresses = query_account_addresses(conn, header.id())?;
+        Ok(Some(AccountRecord::new(account, status, addresses)))
     }
 
     pub(crate) fn insert_account(
         conn: &mut Connection,
         merkle_store: &Arc<RwLock<MerkleStore>>,
         account: &Account,
-        account_seed: Option<Word>,
-        addresses: Vec<AccountIdAddress>,
+        initial_address: &Address,
     ) -> Result<(), StoreError> {
         let tx = conn.transaction().into_store_error()?;
 
@@ -158,9 +161,9 @@ impl SqliteStore {
         )?;
 
         Self::insert_assets(&tx, account.vault().root(), account.vault().assets())?;
-        Self::insert_account_header(&tx, &account.into(), account_seed)?;
+        Self::insert_account_header(&tx, &account.into(), account.seed())?;
 
-        Self::insert_addresses(&tx, addresses.into_iter(), account.id())?;
+        Self::insert_address(&tx, initial_address, account.id())?;
 
         tx.commit().into_store_error()?;
 
@@ -211,6 +214,8 @@ impl SqliteStore {
         code: &AccountCode,
     ) -> Result<(), StoreError> {
         let tx = conn.transaction().into_store_error()?;
+
+        Self::insert_account_code(&tx, code)?;
 
         const QUERY: &str =
             insert_sql!(foreign_account_code { account_id, code_commitment } | REPLACE);
@@ -291,7 +296,7 @@ impl SqliteStore {
         merkle_store: &Arc<RwLock<MerkleStore>>,
         account_id: AccountId,
         faucet_id_prefix: AccountIdPrefix,
-    ) -> Result<Option<(Asset, MerklePath)>, StoreError> {
+    ) -> Result<Option<(Asset, AssetWitness)>, StoreError> {
         let header = Self::get_account_header(conn, account_id)?
             .ok_or(StoreError::AccountDataNotFound(account_id))?
             .0;
@@ -308,9 +313,10 @@ impl SqliteStore {
 
         let merkle_store = merkle_store.read().expect("merkle_store read lock not poisoned");
 
-        let merkle_path = get_asset_proof(&merkle_store, header.vault_root(), &asset)?;
+        let proof = get_asset_proof(&merkle_store, header.vault_root(), &asset)?;
+        let witness = AssetWitness::new(proof)?;
 
-        Ok(Some((asset, merkle_path)))
+        Ok(Some((asset, witness)))
     }
 
     /// Retrieves a specific item from the account's storage map without loading the entire storage.
@@ -338,53 +344,50 @@ impl SqliteStore {
         };
 
         let item = map.get(&key);
-
         let merkle_store = merkle_store.read().expect("merkle_store read lock not poisoned");
 
-        let (value, path) = get_storage_map_item_proof(&merkle_store, map.root(), key)?;
-        let leaf = SmtLeaf::new_single(key, value);
+        // TODO: change the api of get_storage_map_item_proof
+        let path = get_storage_map_item_proof(&merkle_store, map.root(), key)?.1;
+        let leaf = SmtLeaf::new_single(StorageMap::hash_key(key), item);
         let proof = SmtProof::new(path, leaf)?;
 
-        Ok((item, StorageMapWitness::new(proof)))
+        let witness = StorageMapWitness::new(proof, [key])?;
+
+        Ok((item, witness))
     }
 
     pub(crate) fn get_account_addresses(
         conn: &mut Connection,
         account_id: AccountId,
-    ) -> Result<Vec<AccountIdAddress>, StoreError> {
+    ) -> Result<Vec<Address>, StoreError> {
         query_account_addresses(conn, account_id)
     }
 
-    pub(crate) fn insert_account_address(
-        conn: &mut Connection,
-        address: AccountIdAddress,
+    pub(crate) fn insert_address(
+        tx: &Transaction<'_>,
+        address: &Address,
+        account_id: AccountId,
     ) -> Result<(), StoreError> {
-        let account_id = address.id();
         let derived_note_tag = address.to_note_tag();
         let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, account_id);
 
-        if Self::get_note_tags(conn)?.contains(&note_tag_record) {
-            return Err(StoreError::NoteTagAlreadyTracked(u64::from(note_tag_record.tag.as_u32())));
-        }
+        add_note_tag_tx(tx, &note_tag_record)?;
+        Self::insert_address_internal(tx, address, account_id)?;
 
-        let tx = conn.transaction().into_store_error()?;
-        add_note_tag_tx(&tx, &note_tag_record)?;
-        Self::insert_addresses(&tx, vec![address].into_iter(), account_id)?;
-
-        tx.commit().into_store_error()
+        Ok(())
     }
 
-    pub(crate) fn remove_account_address(
+    pub(crate) fn remove_address(
         conn: &mut Connection,
-        address: AccountIdAddress,
+        address: &Address,
+        account_id: AccountId,
     ) -> Result<(), StoreError> {
-        let account_id = address.id();
         let derived_note_tag = address.to_note_tag();
         let note_tag_record = NoteTagRecord::with_account_source(derived_note_tag, account_id);
 
         let tx = conn.transaction().into_store_error()?;
         remove_note_tag_tx(&tx, note_tag_record)?;
-        Self::remove_address(&tx, address)?;
+        Self::remove_address_internal(&tx, address)?;
 
         tx.commit().into_store_error()
     }
@@ -835,23 +838,21 @@ impl SqliteStore {
         Ok(())
     }
 
-    fn insert_addresses(
+    fn insert_address_internal(
         tx: &Transaction<'_>,
-        addresses: impl Iterator<Item = AccountIdAddress>,
+        address: &Address,
         account_id: AccountId,
     ) -> Result<(), StoreError> {
-        for address in addresses {
-            const QUERY: &str = insert_sql!(addresses { address, id } | REPLACE);
-            let serialized_address: [u8; AccountIdAddress::SERIALIZED_SIZE] = address.into();
-            tx.execute(QUERY, params![serialized_address, account_id.to_hex(),])
-                .into_store_error()?;
-        }
+        const QUERY: &str = insert_sql!(addresses { address, id } | REPLACE);
+        let serialized_address = address.to_bytes();
+        tx.execute(QUERY, params![serialized_address, account_id.to_hex(),])
+            .into_store_error()?;
 
         Ok(())
     }
 
-    fn remove_address(tx: &Transaction<'_>, address: AccountIdAddress) -> Result<(), StoreError> {
-        let serialized_address: [u8; AccountIdAddress::SERIALIZED_SIZE] = address.into();
+    fn remove_address_internal(tx: &Transaction<'_>, address: &Address) -> Result<(), StoreError> {
+        let serialized_address = address.to_bytes();
 
         const DELETE_QUERY: &str = "DELETE FROM addresses WHERE address = ?";
         tx.execute(DELETE_QUERY, params![serialized_address]).into_store_error()?;
@@ -1057,23 +1058,23 @@ fn query_account_headers(
 fn query_account_addresses(
     conn: &Connection,
     account_id: AccountId,
-) -> Result<Vec<AccountIdAddress>, StoreError> {
+) -> Result<Vec<Address>, StoreError> {
     const ADDRESS_QUERY: &str = "SELECT address FROM addresses";
 
     let query = format!("{ADDRESS_QUERY} WHERE ID = '{}'", account_id.to_hex());
     conn.prepare(&query)
         .into_store_error()?
         .query_map([], |row| {
-            let address: [u8; AccountIdAddress::SERIALIZED_SIZE] = row.get(0)?;
+            let address: Vec<u8> = row.get(0)?;
             Ok(address)
         })
         .into_store_error()?
         .map(|result| {
             let serialized_address = result.into_store_error()?;
-            let address = AccountIdAddress::try_from(serialized_address)?;
+            let address = Address::read_from_bytes(&serialized_address)?;
             Ok(address)
         })
-        .collect::<Result<Vec<AccountIdAddress>, StoreError>>()
+        .collect::<Result<Vec<Address>, StoreError>>()
 }
 
 #[cfg(test)]
@@ -1092,6 +1093,7 @@ mod tests {
         AccountId,
         AccountIdAddress,
         AccountType,
+        Address,
         AddressInterface,
         StorageMap,
         StorageSlot,
@@ -1180,13 +1182,15 @@ mod tests {
         .with_supports_all_types();
 
         // Create and insert an account
-        let (account, seed) = AccountBuilder::new([0; 32])
+        let account = AccountBuilder::new([0; 32])
             .account_type(AccountType::RegularAccountImmutableCode)
             .with_auth_component(AuthRpoFalcon512::new(PublicKey::new(EMPTY_WORD)))
             .with_component(dummy_component)
             .build()?;
-        let default_address = AccountIdAddress::new(account.id(), AddressInterface::Unspecified);
-        store.insert_account(&account, Some(seed), vec![default_address]).await?;
+
+        let default_address =
+            Address::AccountId(AccountIdAddress::new(account.id(), AddressInterface::Unspecified));
+        store.insert_account(&account, default_address).await?;
 
         let mut storage_delta = AccountStorageDelta::new();
         storage_delta.set_item(1, [ZERO, ZERO, ZERO, ONE].into());
@@ -1274,8 +1278,9 @@ mod tests {
             .with_component(dummy_component)
             .with_assets(assets.clone())
             .build_existing()?;
-        let default_address = AccountIdAddress::new(account.id(), AddressInterface::Unspecified);
-        store.insert_account(&account, None, vec![default_address]).await?;
+        let default_address =
+            Address::AccountId(AccountIdAddress::new(account.id(), AddressInterface::Unspecified));
+        store.insert_account(&account, default_address).await?;
 
         let mut storage_delta = AccountStorageDelta::new();
         storage_delta.set_item(1, EMPTY_WORD);
