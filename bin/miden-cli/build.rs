@@ -11,6 +11,11 @@ use miden_client::account::component::{
 };
 use miden_client::assembly::Library;
 use miden_client::utils::Serializable;
+use miden_client::vm::{
+    AttributeSet, MastArtifact, Package, PackageExport, PackageManifest, QualifiedProcedureName,
+};
+
+const PACKAGE_DIR: &str = "packages";
 
 fn main() {
     build_component_template(&PathBuf::from("templates/basic-wallet.toml"), basic_wallet_library());

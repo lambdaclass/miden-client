@@ -25,10 +25,13 @@ version      = "0.12.0"
 
 [workspace.dependencies]
 # Miden base/protocol dependencies
-miden-lib     = { branch = "next", default-features = false, git = "https://github.com/0xMiden/miden-base" }
-miden-objects = { branch = "next", default-features = false, git = "https://github.com/0xMiden/miden-base" }
-miden-testing = { branch = "next", default-features = false, git = "https://github.com/0xMiden/miden-base" }
-miden-tx      = { branch = "next", default-features = false, git = "https://github.com/0xMiden/miden-base" }
+miden-lib             = { branch = "next", default-features = false, git = "https://github.com/0xMiden/miden-base" }
+miden-objects         = { branch = "next", default-features = false, git = "https://github.com/0xMiden/miden-base" }
+miden-testing         = { branch = "next", default-features = false, git = "https://github.com/0xMiden/miden-base" }
+miden-tx              = { branch = "next", default-features = false, git = "https://github.com/0xmiden/miden-base" }
+# NOTE: Added temporarily until PackagExport, QualifiedProcedureName, MastArtifact and AttributeSet are re-exported via miden-base
+miden-mast-package    = { branch = "next", default-features = false, git = "https://github.com/0xmiden/miden-vm" }
+miden-assembly-syntax = { branch = "next", default-features = false, git = "https://github.com/0xmiden/miden-vm" }
 
 # Miden node dependencies
 miden-node-block-producer = { branch = "next", git = "https://github.com/0xMiden/miden-node" }

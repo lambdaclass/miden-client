@@ -227,6 +227,9 @@ pub mod address {
 
 /// Provides types for working with the virtual machine within the Miden network.
 pub mod vm {
+    // NOTE: Added temporarily until these are re-exported via miden-base
+    pub use miden_assembly_syntax::ast::{AttributeSet, QualifiedProcedureName};
+    pub use miden_mast_package::{MastArtifact, PackageExport, PackageManifest};
     pub use miden_objects::vm::{AdviceInputs, AdviceMap, Package};
 }
 
