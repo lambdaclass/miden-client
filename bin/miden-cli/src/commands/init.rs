@@ -110,7 +110,7 @@ impl InitCmd {
 /// and writes the default included component templates.
 fn write_template_files(cli_config: &CliConfig) -> Result<(), CliError> {
     let packages_dir = &cli_config.package_directory;
-    fs::create_dir_all(&packages_dir).map_err(|err| {
+    fs::create_dir_all(packages_dir).map_err(|err| {
         CliError::Config(
             Box::new(err),
             "failed to create account component templates directory".into(),

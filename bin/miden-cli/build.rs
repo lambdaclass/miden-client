@@ -4,7 +4,6 @@ use std::{env, fs};
 
 use miden_client::account::component::{
     AccountComponentMetadata,
-    AccountComponentTemplate,
     MIDEN_PACKAGE_EXTENSION,
     basic_fungible_faucet_library,
     basic_wallet_library,
@@ -13,7 +12,6 @@ use miden_client::account::component::{
 use miden_client::assembly::Library;
 use miden_client::utils::Serializable;
 use miden_client::vm::{
-    AttributeSet,
     MastArtifact,
     Package,
     PackageExport,
@@ -51,7 +49,6 @@ pub fn build_component_template(metadata_path: &Path, library: Library) {
                 QualifiedProcedureName::new(module_info.path().clone(), proc_info.name.clone());
             let digest = proc_info.digest;
             let signature = proc_info.signature.as_deref().cloned();
-            let attributes = AttributeSet::new(std::iter::empty());
             exports.push(PackageExport { name, digest, signature });
         }
     }

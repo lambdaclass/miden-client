@@ -406,7 +406,7 @@ fn process_packages(
 
 /// Helper function to process extra component templates.
 /// It reads user input for each placeholder in a component template.
-fn process_component_templates(
+fn _process_component_templates(
     extra_components: &[AccountComponentTemplate],
     file_init_storage_data: &InitStorageData,
 ) -> Result<Vec<AccountComponent>, CliError> {

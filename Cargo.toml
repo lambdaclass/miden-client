@@ -25,10 +25,10 @@ version      = "0.12.0"
 
 [workspace.dependencies]
 # Miden base/protocol dependencies
-miden-lib             = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
-miden-objects         = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
-miden-testing         = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
-miden-tx              = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
+miden-lib     = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
+miden-objects = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
+miden-testing = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
+miden-tx      = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
 
 # Miden node dependencies
 miden-node-block-producer = { branch = "fabrizioorsi/vm-re-export-miden-objects", git = "https://github.com/lambdaclass/miden-node" }
@@ -37,7 +37,9 @@ miden-node-proto-build = { branch = "fabrizioorsi/vm-re-export-miden-objects", d
 miden-node-rpc = { branch = "fabrizioorsi/vm-re-export-miden-objects", git = "https://github.com/lambdaclass/miden-node" }
 miden-node-store = { branch = "fabrizioorsi/vm-re-export-miden-objects", git = "https://github.com/lambdaclass/miden-node" }
 miden-node-utils = { branch = "fabrizioorsi/vm-re-export-miden-objects", git = "https://github.com/lambdaclass/miden-node" }
-miden-remote-prover = { branch = "fabrizioorsi/vm-re-export-miden-objects", features = ["concurrent"], git = "https://github.com/lambdaclass/miden-node" }
+miden-remote-prover = { branch = "fabrizioorsi/vm-re-export-miden-objects", features = [
+  "concurrent",
+], git = "https://github.com/lambdaclass/miden-node" }
 miden-remote-prover-client = { branch = "fabrizioorsi/vm-re-export-miden-objects", default-features = false, features = [
   "tx-prover",
 ], git = "https://github.com/lambdaclass/miden-node" }
