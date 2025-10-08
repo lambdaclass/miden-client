@@ -119,7 +119,7 @@ impl NewWalletCmd {
             &keystore,
             account_type,
             self.storage_mode.into(),
-            &self.packages,
+            &package_paths,
             self.init_storage_data_path.clone(),
             self.deploy,
         )
