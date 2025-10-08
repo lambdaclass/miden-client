@@ -146,10 +146,7 @@ fn write_packages_files(cli_config: &CliConfig) -> Result<(), CliError> {
         })?;
     }
 
-    info!(
-        "Template files successfully created in: {:?}",
-        cli_config.component_template_directory
-    );
+    info!("Packages files successfully created in: {:?}", packages_dir);
 
     Ok(())
 }
