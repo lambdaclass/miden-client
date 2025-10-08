@@ -52,7 +52,7 @@ pub fn build_component_template(metadata_path: &Path, library: Library) {
             let digest = proc_info.digest;
             let signature = proc_info.signature.as_deref().cloned();
             let attributes = AttributeSet::new(std::iter::empty());
-            exports.push(PackageExport { name, digest, signature, attributes });
+            exports.push(PackageExport { name, digest, signature });
         }
     }
 
@@ -71,7 +71,7 @@ pub fn build_component_template(metadata_path: &Path, library: Library) {
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR environment variable not set");
 
     // Write the file
-    let packages_out_dir = PathBuf::from(out_dir).join(PACKAGE_DIR);
+    let packages_out_dir = PathBuf::from(&out_dir).join(PACKAGE_DIR);
     fs::create_dir_all(&packages_out_dir).expect("Failed to create templates directory in OUT_DIR");
 
     let mut output_filename = metadata_path
@@ -80,7 +80,7 @@ pub fn build_component_template(metadata_path: &Path, library: Library) {
         .to_os_string();
     output_filename.push(format!(".{MIDEN_PACKAGE_EXTENSION}"));
 
-    let output_file = packages_out_dir.join(output_filename);
+    let output_file = packages_out_dir.join(&output_filename);
 
     fs::write(&output_file, &package.to_bytes()).unwrap_or_else(|e| {
         eprintln!(
