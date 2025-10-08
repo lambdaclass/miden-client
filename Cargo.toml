@@ -29,9 +29,6 @@ miden-lib             = { branch = "re-export-vm", default-features = false, git
 miden-objects         = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
 miden-testing         = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
 miden-tx              = { branch = "re-export-vm", default-features = false, git = "https://github.com/lambdaclass/miden-base" }
-# NOTE: Added temporarily until PackagExport, QualifiedProcedureName, MastArtifact and AttributeSet are re-exported via miden-base
-miden-mast-package    = { branch = "next", default-features = false, git = "https://github.com/0xmiden/miden-vm" }
-miden-assembly-syntax = { branch = "next", default-features = false, git = "https://github.com/0xmiden/miden-vm" }
 
 # Miden node dependencies
 miden-node-block-producer = { branch = "fabrizioorsi/vm-re-export-miden-objects", git = "https://github.com/lambdaclass/miden-node" }

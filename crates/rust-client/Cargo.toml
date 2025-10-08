@@ -38,9 +38,6 @@ miden-objects              = { workspace = true }
 miden-remote-prover-client = { default-features = false, features = ["tx-prover"], workspace = true }
 miden-testing              = { optional = true, workspace = true }
 miden-tx                   = { workspace = true }
-# NOTE: Added temporarily until PackagExport, QualifiedProcedureName, MastArtifact and AttributeSet are re-exported via miden-base
-miden-mast-package         = { workspace = true }
-miden-assembly-syntax      = { workspace = true }
 
 # External dependencies
 anyhow      = { workspace = true }
