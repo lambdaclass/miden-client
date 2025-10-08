@@ -694,7 +694,7 @@ fn new_faucet_cli(cli_path: &Path, storage_mode: AccountStorageMode) -> String {
         storage_mode.to_string().as_str(),
         "--account-type",
         "fungible-faucet",
-        "-c",
+        "-p",
         "basic-fungible-faucet",
         "-i",
         INIT_DATA_FILENAME,
