@@ -85,10 +85,6 @@ pub struct NewWalletCmd {
     pub mutable: bool,
     /// Optional list of files specifying additional components to add to the account.
     #[arg(short, long)]
-    pub extra_components: Vec<PathBuf>,
-    /// Optional list of files containing a Miden Package in `.masp` form from which a
-    /// component template can be extracted.
-    #[arg(short, long)]
     pub packages: Vec<PathBuf>,
     /// Optional file path to a TOML file containing a list of key/values used for initializing
     /// storage. Each of these keys should map to the templated storage values within the passed
@@ -108,8 +104,8 @@ impl NewWalletCmd {
         mut client: Client<AUTH>,
         keystore: CliKeyStore,
     ) -> Result<(), CliError> {
-        let mut component_template_paths = vec![PathBuf::from("basic-wallet")];
-        component_template_paths.extend(self.extra_components.iter().cloned());
+        let mut package_paths = vec![PathBuf::from("basic-wallet")];
+        package_paths.extend(self.packages.iter().cloned());
 
         // Choose account type based on mutability.
         let account_type = if self.mutable {
@@ -123,7 +119,6 @@ impl NewWalletCmd {
             &keystore,
             account_type,
             self.storage_mode.into(),
-            &component_template_paths,
             &self.packages,
             self.init_storage_data_path.clone(),
             self.deploy,
@@ -162,10 +157,6 @@ pub struct NewAccountCmd {
     /// At least one component template is required, either specified by
     /// [[`NewAccountCmd::component_templates`]] or by [[`NewAccountCmd::packages`]].
     #[arg(short, long)]
-    pub component_templates: Vec<PathBuf>,
-    /// List of files containing a Miden Package in `.masp` form from which a
-    /// component template is extracted.
-    #[arg(short, long)]
     pub packages: Vec<PathBuf>,
     /// Optional file path to a TOML file containing a list of key/values used for initializing
     /// storage. Each of these keys should map to the templated storage values within the passed
@@ -190,7 +181,6 @@ impl NewAccountCmd {
             &keystore,
             self.account_type.into(),
             self.storage_mode.into(),
-            &self.component_templates,
             &self.packages,
             self.init_storage_data_path.clone(),
             self.deploy,
@@ -291,15 +281,15 @@ async fn create_client_account<AUTH: TransactionAuthenticator + Sync + 'static>(
     keystore: &CliKeyStore,
     account_type: AccountType,
     storage_mode: AccountStorageMode,
-    component_template_paths: &[PathBuf],
     package_paths: &[PathBuf],
     init_storage_data_path: Option<PathBuf>,
     deploy: bool,
 ) -> Result<Account, CliError> {
-    if component_template_paths.is_empty() && package_paths.is_empty() {
-        return Err(CliError::InvalidArgument(
-            "account must contain at least one component".into(),
-        ));
+    if package_paths.is_empty() {
+        return Err(CliError::InvalidArgument(format!(
+            "Account must contain at least one component. To provide one, pass a package with the -p flag, like so:
+{} -p <package_name>
+            ", client_binary_name().display())));
     }
 
     // Load the component templates and initialization storage data.
