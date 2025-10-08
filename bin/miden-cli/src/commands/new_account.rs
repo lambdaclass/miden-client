@@ -261,11 +261,24 @@ fn load_packages(
 
 /// Loads the initialization storage data from an optional TOML file.
 /// If None is passed, an empty object is returned.
-fn load_init_storage_data(path: Option<PathBuf>) -> Result<InitStorageData, CliError> {
-    if let Some(path) = path {
+fn load_init_storage_data(path: Option<&PathBuf>) -> Result<InitStorageData, CliError> {
+    if let Some(path) = &path {
         let mut contents = String::new();
-        File::open(path).and_then(|mut f| f.read_to_string(&mut contents))?;
-        InitStorageData::from_toml(&contents).map_err(|err| CliError::Internal(Box::new(err)))
+        File::open(path)
+            .and_then(|mut f| f.read_to_string(&mut contents))
+            .map_err(|err| {
+                CliError::InitDataError(
+                    Box::new(err),
+                    format!("Failed to open init data  file {}", path.display()),
+                )
+            })?;
+
+        InitStorageData::from_toml(&contents).map_err(|err| {
+            CliError::InitDataError(
+                Box::new(err),
+                format!("Failed to deserialize init data from file {}", path.display()),
+            )
+        })
     } else {
         Ok(InitStorageData::default())
     }
@@ -299,7 +312,7 @@ async fn create_client_account<AUTH: TransactionAuthenticator + Sync + 'static>(
     let packages = load_packages(&cli_config, package_paths)?;
     debug!("Loaded {} packages", packages.len());
     debug!("Loading initialization storage data...");
-    let init_storage_data = load_init_storage_data(init_storage_data_path)?;
+    let init_storage_data = load_init_storage_data(init_storage_data_path.as_ref())?;
     debug!("Loaded initialization storage data");
 
     let mut init_seed = [0u8; 32];
