@@ -82,7 +82,7 @@ pub fn build_component_template(metadata_path: &Path, library: Library) {
 
     let output_file = packages_out_dir.join(&output_filename);
 
-    fs::write(&output_file, &package.to_bytes()).unwrap_or_else(|e| {
+    fs::write(&output_file, package.to_bytes()).unwrap_or_else(|e| {
         eprintln!(
             "Failed to write Package {} to file {} in {}. Error: {}",
             package.name,
