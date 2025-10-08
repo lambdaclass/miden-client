@@ -83,9 +83,10 @@ pub struct NewWalletCmd {
     /// Defines if the account code is mutable (by default it isn't mutable).
     #[arg(short, long)]
     pub mutable: bool,
-    /// Optional list of files specifying additional components to add to the account.
+    /// Optional list of paths specifying additional components in the form of
+    /// packages to add to the account.
     #[arg(short, long)]
-    pub packages: Vec<PathBuf>,
+    pub extra_packages: Vec<PathBuf>,
     /// Optional file path to a TOML file containing a list of key/values used for initializing
     /// storage. Each of these keys should map to the templated storage values within the passed
     /// list of component templates. The user will be prompted to provide values for any keys not
@@ -105,7 +106,7 @@ impl NewWalletCmd {
         keystore: CliKeyStore,
     ) -> Result<(), CliError> {
         let mut package_paths = vec![PathBuf::from("basic-wallet")];
-        package_paths.extend(self.packages.iter().cloned());
+        package_paths.extend(self.extra_packages.iter().cloned());
 
         // Choose account type based on mutability.
         let account_type = if self.mutable {
@@ -158,6 +159,13 @@ pub struct NewAccountCmd {
     /// [[`NewAccountCmd::component_templates`]] or by [[`NewAccountCmd::packages`]].
     #[arg(short, long)]
     pub packages: Vec<PathBuf>,
+    #[deprecated(
+        since = "0.12.0",
+        note = "Component templates were superseded my [miden_client::vm::Package].\
+                The field is only kept to inform users about said change."
+    )]
+    #[arg(short, long, hide(true))]
+    pub component_templates: Vec<PathBuf>,
     /// Optional file path to a TOML file containing a list of key/values used for initializing
     /// storage. Each of these keys should map to the templated storage values within the passed
     /// list of component templates. The user will be prompted to provide values for any keys not
@@ -176,6 +184,20 @@ impl NewAccountCmd {
         mut client: Client<AUTH>,
         keystore: CliKeyStore,
     ) -> Result<(), CliError> {
+        // We allow deprecation here in order to inform the user about the
+        // migration from account component templates to packages.
+        #[allow(deprecated)]
+        if !self.component_templates.is_empty() {
+            return Err(CliError::Input(format!(
+                "Detected use of -c/--component-templates flag.
+Account component templates have been replaced by the use of packages.
+To use packages, pass the -p flag instead, like so:
+{} new-account -p <package-name.masp>
+",
+                client_binary_name().display()
+            )));
+        }
+
         let new_account = create_client_account(
             &mut client,
             &keystore,
