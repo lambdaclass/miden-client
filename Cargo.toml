@@ -34,10 +34,10 @@ miden-client              = { default-features = false, path = "crates/rust-clie
 miden-client-sqlite-store = { default-features = false, path = "crates/sqlite-store", version = "0.13" }
 
 # Miden protocol dependencies
-miden-protocol  = { default-features = false, version = "0.13" }
-miden-standards = { default-features = false, version = "0.13" }
-miden-testing   = { default-features = false, version = "0.13" }
-miden-tx        = { default-features = false, version = "0.13" }
+miden-protocol  = { default-features = false, branch = "fabrizioorsi/miden-testing-compiler-backport", git = "https://github.com/lambdaclass/miden-base.git" }
+miden-standards = { default-features = false, branch = "fabrizioorsi/miden-testing-compiler-backport", git = "https://github.com/lambdaclass/miden-base.git" }
+miden-testing   = { default-features = false, branch = "fabrizioorsi/miden-testing-compiler-backport", git = "https://github.com/lambdaclass/miden-base.git" }
+miden-tx        = { default-features = false, branch = "fabrizioorsi/miden-testing-compiler-backport", git = "https://github.com/lambdaclass/miden-base.git" }
 
 # Miden node dependencies
 miden-node-block-producer        = { version = "0.13" }
@@ -75,3 +75,11 @@ module_name_repetitions     = "allow" # Many triggers, and is a stylistic choice
 must_use_candidate          = "allow" # This marks many fn's which isn't helpful.
 should_panic_without_expect = "allow" # We don't care about the specific panic message.
 # End of pedantic lints.
+
+[patch.crates-io]
+miden-protocol        = { git = "https://github.com/lambdaclass/miden-base.git", branch = "fabrizioorsi/miden-testing-compiler-backport" }
+miden-standards       = { git = "https://github.com/lambdaclass/miden-base.git", branch = "fabrizioorsi/miden-testing-compiler-backport" }
+miden-testing         = { git = "https://github.com/lambdaclass/miden-base.git", branch = "fabrizioorsi/miden-testing-compiler-backport" }
+miden-tx              = { git = "https://github.com/lambdaclass/miden-base.git", branch = "fabrizioorsi/miden-testing-compiler-backport" }
+miden-block-prover    = { git = "https://github.com/lambdaclass/miden-base.git", branch = "fabrizioorsi/miden-testing-compiler-backport" }
+miden-tx-batch-prover = { git = "https://github.com/lambdaclass/miden-base.git", branch = "fabrizioorsi/miden-testing-compiler-backport" }
