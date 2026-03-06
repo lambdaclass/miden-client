@@ -1631,20 +1631,20 @@ dependencies = [
  "cfg-if",
  "js-sys",
  "libc",
- "r-efi",
+ "r-efi 5.3.0",
  "wasip2",
  "wasm-bindgen",
 ]
 
 [[package]]
 name = "getrandom"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "139ef39800118c7683f2fd3c98c1b23c09ae076556b435f8e9064ae108aaeeec"
+checksum = "0de51e6874e94e7bf76d726fc5d13ba782deca734ff60d5bb2fb2607c7406555"
 dependencies = [
  "cfg-if",
  "libc",
- "r-efi",
+ "r-efi 6.0.0",
  "wasip2",
  "wasip3",
 ]
@@ -2132,9 +2132,9 @@ dependencies = [
 
 [[package]]
 name = "ipnet"
-version = "2.11.0"
+version = "2.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "469fb0b9cefa57e3ef31275ee7cacb78f2fdca44e4765491884a2b119d4eb130"
+checksum = "d98f6fed1fde3f8c21bc40a1abb88dd75e67924f9cffc3ef95607bad8017f8e2"
 
 [[package]]
 name = "iri-string"
@@ -2184,9 +2184,9 @@ checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
 
 [[package]]
 name = "jiff"
-version = "0.2.22"
+version = "0.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "819b44bc7c87d9117eb522f14d46e918add69ff12713c475946b0a29363ed1c2"
+checksum = "1a3546dc96b6d42c5f24902af9e2538e82e39ad350b0c766eb3fbf2d8f3d8359"
 dependencies = [
  "jiff-static",
  "log",
@@ -2197,9 +2197,9 @@ dependencies = [
 
 [[package]]
 name = "jiff-static"
-version = "0.2.22"
+version = "0.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "470252db18ecc35fd766c0891b1e3ec6cbbcd62507e85276c01bf75d8e94d4a1"
+checksum = "2a8c8b344124222efd714b73bb41f8b5120b27a7cc1c75593a6ff768d9d05aa4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2535,7 +2535,7 @@ dependencies = [
 [[package]]
 name = "miden-agglayer"
 version = "0.13.3"
-source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#4441e6dfc18c6ba4d3d08d82fe8346656f94f7a7"
+source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#d424a11c271118c8236f8bee9157c68e4767d38f"
 dependencies = [
  "fs-err",
  "miden-assembly",
@@ -2603,7 +2603,7 @@ dependencies = [
 [[package]]
 name = "miden-block-prover"
 version = "0.13.3"
-source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#4441e6dfc18c6ba4d3d08d82fe8346656f94f7a7"
+source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#d424a11c271118c8236f8bee9157c68e4767d38f"
 dependencies = [
  "miden-protocol",
  "thiserror 2.0.18",
@@ -2779,9 +2779,9 @@ dependencies = [
 
 [[package]]
 name = "miden-crypto"
-version = "0.19.7"
+version = "0.19.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab800d547e4a09ed8f6306e6b8f51f4c26c4c4fc32c88be6f1be84392e6fa790"
+checksum = "be59336a868de7c379eace9450563c2d7f4a0b7ab936835ec5a340dcd8d9a5ed"
 dependencies = [
  "blake3",
  "cc",
@@ -2814,9 +2814,9 @@ dependencies = [
 
 [[package]]
 name = "miden-crypto-derive"
-version = "0.19.7"
+version = "0.19.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccd9786df82cf7bdb93bb64330a0c5644c07478a57250e19018518a598c80367"
+checksum = "06f2e7a7ac7d01e03a7340224722e75494826fe6b61a3796b77fbb044d018287"
 dependencies = [
  "quote",
  "syn 2.0.117",
@@ -3168,7 +3168,7 @@ dependencies = [
 [[package]]
 name = "miden-protocol"
 version = "0.13.3"
-source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#4441e6dfc18c6ba4d3d08d82fe8346656f94f7a7"
+source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#d424a11c271118c8236f8bee9157c68e4767d38f"
 dependencies = [
  "bech32",
  "fs-err",
@@ -3198,7 +3198,7 @@ dependencies = [
 [[package]]
 name = "miden-protocol-macros"
 version = "0.13.3"
-source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#4441e6dfc18c6ba4d3d08d82fe8346656f94f7a7"
+source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#d424a11c271118c8236f8bee9157c68e4767d38f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3289,7 +3289,7 @@ dependencies = [
 [[package]]
 name = "miden-standards"
 version = "0.13.3"
-source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#4441e6dfc18c6ba4d3d08d82fe8346656f94f7a7"
+source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#d424a11c271118c8236f8bee9157c68e4767d38f"
 dependencies = [
  "fs-err",
  "miden-assembly",
@@ -3306,7 +3306,7 @@ dependencies = [
 [[package]]
 name = "miden-testing"
 version = "0.13.3"
-source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#4441e6dfc18c6ba4d3d08d82fe8346656f94f7a7"
+source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#d424a11c271118c8236f8bee9157c68e4767d38f"
 dependencies = [
  "anyhow",
  "itertools 0.14.0",
@@ -3327,7 +3327,7 @@ dependencies = [
 [[package]]
 name = "miden-tx"
 version = "0.13.3"
-source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#4441e6dfc18c6ba4d3d08d82fe8346656f94f7a7"
+source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#d424a11c271118c8236f8bee9157c68e4767d38f"
 dependencies = [
  "miden-processor",
  "miden-protocol",
@@ -3340,7 +3340,7 @@ dependencies = [
 [[package]]
 name = "miden-tx-batch-prover"
 version = "0.13.3"
-source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#4441e6dfc18c6ba4d3d08d82fe8346656f94f7a7"
+source = "git+https://github.com/lambdaclass/miden-base.git?branch=fabrizioorsi%2Fmiden-testing-compiler-backport#d424a11c271118c8236f8bee9157c68e4767d38f"
 dependencies = [
  "miden-protocol",
  "miden-tx",
@@ -4629,9 +4629,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.44"
+version = "1.0.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b2ebcf727b7760c461f091f9f0f539b77b8e87f2fd88131e7f1b433b3cece4"
+checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
 dependencies = [
  "proc-macro2",
 ]
@@ -4641,6 +4641,12 @@ name = "r-efi"
 version = "5.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
+
+[[package]]
+name = "r-efi"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "rand"
@@ -5400,12 +5406,12 @@ checksum = "b7c388c1b5e93756d0c740965c41e8822f866621d41acbdf6336a6a168f8840c"
 
 [[package]]
 name = "socket2"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86f4aa3ad99f2088c990dfa82d367e19cb29268ed67c574d10d0a4bfe71f07e0"
+checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5603,7 +5609,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82a72c767771b47409d2345987fda8628641887d5466101319899796367354a0"
 dependencies = [
  "fastrand",
- "getrandom 0.4.1",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
@@ -5781,9 +5787,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.49.0"
+version = "1.50.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72a2903cd7736441aac9df9d7688bd0ce48edccaadf181c3b90be801e81d3d86"
+checksum = "27ad5e34374e03cfffefc301becb44e9dc3c17584f414349ebe29ed26661822d"
 dependencies = [
  "bytes",
  "libc",
@@ -5892,9 +5898,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.0.3+spec-1.1.0"
+version = "1.0.4+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7614eaf19ad818347db24addfa201729cf2a9b6fdfd9eb0ab870fcacc606c0c"
+checksum = "c94c3321114413476740df133f0d8862c61d87c8d26f04c6841e033c8c80db47"
 dependencies = [
  "indexmap 2.13.0",
  "serde_core",
@@ -6311,7 +6317,7 @@ dependencies = [
  "serde_json",
  "target-triple",
  "termcolor",
- "toml 1.0.3+spec-1.1.0",
+ "toml 1.0.4+spec-1.1.0",
 ]
 
 [[package]]
@@ -6420,11 +6426,11 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.21.0"
+version = "1.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b672338555252d43fd2240c714dc444b8c6fb0a5c5335e65a07bba7742735ddb"
+checksum = "a68d3c8f01c0cfa54a75291d83601161799e4a89a39e0929f4b0354d88757a37"
 dependencies = [
- "getrandom 0.4.1",
+ "getrandom 0.4.2",
  "js-sys",
  "serde_core",
  "wasm-bindgen",
@@ -6970,9 +6976,9 @@ checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
 
 [[package]]
 name = "winnow"
-version = "0.7.14"
+version = "0.7.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a5364e9d77fcdeeaa6062ced926ee3381faa2ee02d3eb83a5c27a8825540829"
+checksum = "df79d97927682d2fd8adb29682d1140b343be4ac0f08fd68b7765d9c059d3945"
 dependencies = [
  "memchr",
 ]
