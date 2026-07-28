@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+* [BREAKING][rename][rust] `NoteScreener::can_consume` → `NoteScreener::get_consumability` and `NoteScreener::can_consume_batch` → `NoteScreener::get_batch_consumability`. The new names reflect that both return a `NoteConsumptionStatus` per account rather than a boolean ([#2338](https://github.com/0xMiden/rust-sdk/pull/2338)).
+
 ### Enhancements
 
 * [FEATURE][cli] Added a `--payback-note-type` option to `swap` so the payback note can be created as public or private (defaults to private). Public payback works without any off-band advice now that SWAP derives the payback recipient deterministically ([#2190](https://github.com/0xMiden/rust-sdk/pull/2190)).
+* [FEATURE][rust] `Client::get_consumable_notes(Some(account_id))` now screens only that account instead of screening every tracked account and discarding the rest, so its cost no longer grows with the number of tracked accounts. Added `NoteScreener::get_batch_consumability_for_account` to screen notes against a single account ([#2338](https://github.com/0xMiden/rust-sdk/pull/2338)).
 
 ## 0.16.0-alpha.1 (2026-07-17)
 
