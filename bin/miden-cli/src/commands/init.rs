@@ -138,19 +138,23 @@ impl InitCmd {
 
         // Check if config already exists
         if config_file_path.exists() {
-            let config = CliConfig::from_dir(&target_miden_dir)?;
-
-            return Err(CliError::Config(
-                "Error with the configuration file".to_string().into(),
-                format!(
-                    "The file \"{}\" already exists in the {} {} directory ({}), configured with the network \"{}\".",
-                    CLIENT_CONFIG_FILE_NAME,
-                    config_type,
-                    MIDEN_DIR,
-                    target_miden_dir.display(),
-                    config.rpc.endpoint
-                ),
-            ));
+            // An unparsable file must still hint at `clear-config`, not `init`.
+            let network_info = match CliConfig::from_dir(&target_miden_dir) {
+                Ok(config) => {
+                    format!(", configured with the network \"{}\"", config.rpc.endpoint)
+                },
+                Err(_) => ", but it could not be parsed".to_string(),
+            };
+            let global_flag: String = if self.local { "" } else { " --global" }.into();
+            let error_msg = format!(
+                "\"{}\" already exists in the {} {} directory ({}){}.",
+                CLIENT_CONFIG_FILE_NAME,
+                config_type,
+                MIDEN_DIR,
+                target_miden_dir.display(),
+                network_info
+            );
+            return Err(CliError::ConfigAlreadyExists(error_msg, global_flag));
         }
 
         // Create the miden directory if not existent
