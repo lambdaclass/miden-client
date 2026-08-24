@@ -143,7 +143,8 @@ impl AccountCmd {
                         client
                             .set_setting(DEFAULT_ACCOUNT_ID_KEY.to_string(), account.id())
                             .await?;
-                        println!("Setting default account to {id}...");
+
+                        println!("Default account set to {}", account.id());
                     },
                 }
             },
